@@ -10,7 +10,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Fonts\AnonymousPro-Regular.ttf" />
+    <None Remove="Image\icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Image\icon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WPF-UI" Version="4.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Fonts\AnonymousPro-Regular.ttf" />
+    <Resource Include="Image\icon.png" />
   </ItemGroup>
 
 </Project>
