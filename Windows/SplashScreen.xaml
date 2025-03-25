@@ -1,0 +1,47 @@
+﻿<Window x:Class="PlagiarismGuard.Windows.SplashScreen"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PlagiarismGuard.Windows"
+        mc:Ignorable="d"
+        Title="Plagiarism Guard" 
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen"
+        Width="500" Height="300" >
+    <Window.Resources>
+        <Storyboard x:Key="FadeInAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="0" To="1" Duration="0:0:1.5"/>
+        </Storyboard>
+
+        <Storyboard x:Key="FadeOutAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="1" To="0" Duration="0:0:1.5"
+                             Completed="FadeOutAnimation_Completed"/>
+        </Storyboard>
+    </Window.Resources>
+
+    <Border CornerRadius="15" Background="White" BorderThickness="1" BorderBrush="#E0E0E0">
+        <Grid>
+            <Border CornerRadius="15">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                        <GradientStop Color="#FFFFFF" Offset="0"/>
+                        <GradientStop Color="#7F636AE8" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="Plagiarism Guard" 
+                           FontSize="28" 
+                           Margin="0 0 0 20"
+                           FontFamily="/Fonts/#Anonymous Pro"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
