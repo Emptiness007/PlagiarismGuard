@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.3" />
+    <PackageReference Include="MySql.Data" Version="9.2.0" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />
     <PackageReference Include="WPF-UI" Version="4.0.2" />
   </ItemGroup>
@@ -27,6 +27,10 @@
   <ItemGroup>
     <Resource Include="Fonts\AnonymousPro-Regular.ttf" />
     <Resource Include="Image\icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\" />
   </ItemGroup>
 
 </Project>

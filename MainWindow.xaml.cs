@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using PlagiarismGuard.Data;
+using System.Collections.ObjectModel;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,40 +18,17 @@ namespace PlagiarismGuard
     /// </summary>
     public partial class MainWindow : Window
     {
-        public MainWindow()
+        private readonly PlagiarismContext _context;
+
+        public MainWindow(PlagiarismContext context)
         {
             InitializeComponent();
-
-            // Создаем коллекцию данных
-            var sources = new ObservableCollection<Source>
-            {
-                new Source
-                {
-                    SourceNo = 1,
-                    SourceName = "Source A",
-                    Excerpt = "This is an example excerpt from the source.",
-                    Similarity = 20, // Процент сходства
-                }
-            };
-
-            // Привязываем данные к DataGrid
-            SourceDataGrid.ItemsSource = sources;
+            _context = context;
         }
 
-        // Обработчик кнопки "View Report"
         private void ViewReport_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("View Report clicked!");
+            MessageBox.Show("отчетик готов!");
         }
-    }
-
-    // Класс для представления данных
-    public class Source
-    {
-        public int SourceNo { get; set; }
-        public string SourceName { get; set; }
-        public string Excerpt { get; set; }
-        public double Similarity { get; set; }
-        public string Url { get; set; }
     }
 }

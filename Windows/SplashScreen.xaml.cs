@@ -44,8 +44,8 @@ namespace PlagiarismGuard.Windows
 
         private void FadeOutAnimation_Completed(object sender, System.EventArgs e)
         {
-            var mainWindow = new MainWindow();
-            mainWindow.Show();
+            var authWindow = new Windows.Authorization();
+            authWindow.Show();
             this.Close();
         }
     }

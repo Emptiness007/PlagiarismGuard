@@ -19,6 +19,7 @@ namespace PlagiarismGuard.Models
 
         [Required]
         [MaxLength(255)]
+        [Column("password_hash")]
         public string PasswordHash { get; set; }
 
         [Required]
@@ -28,7 +29,7 @@ namespace PlagiarismGuard.Models
         [Required]
         [MaxLength(100)]
         public string Email { get; set; }
-
+        [Column("created_at")]
         public DateTime CreatedAt { get; set; }
     }
 }
