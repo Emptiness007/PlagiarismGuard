@@ -81,5 +81,11 @@ namespace PlagiarismGuard.Windows
             string hashedInput = HashPassword(password);
             return hashedInput == hashedPassword;
         }
+
+        private void ForgotPasswordLink_Click(object sender, MouseButtonEventArgs e)
+        {
+            var forgotPasswordWindow = new ForgotPassword(_context);
+            forgotPasswordWindow.ShowDialog();
+        }
     }
 }

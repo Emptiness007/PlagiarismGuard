@@ -27,7 +27,6 @@
             </StackPanel>
             <StackPanel Grid.Column="1">
                 <Button Content="Импорт" Style="{StaticResource ButtonStyle}" Margin="0,10,10,0" Width="70" HorizontalAlignment="Left"/>
-                
             </StackPanel>
         </Grid>
         <Line X1="0" X2="1" Y1="0" Y2="0" Stroke="#DFDDDD" StrokeThickness="1" Stretch="Fill" Margin="0,40,0,0" Cursor=""/>
@@ -50,30 +49,17 @@
                     <ProgressBar Margin="0,25,0,0" Background="#FF636AE8" Height="10" VerticalAlignment="Top"/>
                     <DataGrid x:Name="SourceDataGrid" AutoGenerateColumns="False" CanUserAddRows="False" Style="{StaticResource RoundedDataGridStyle}" IsReadOnly="True" Margin="0,60,0,0" >
                         <DataGrid.Columns>
-                            <!-- Номер -->
                             <DataGridTextColumn Header="№" 
                                   Binding="{Binding SourceNo}" 
                                   Width="40" />
-                            <!-- Название источника -->
                             <DataGridTextColumn Header="Источник" 
                                   Binding="{Binding SourceName}" 
                                   Width="200"/>
-                            <!-- Отрывок -->
                             <DataGridTextColumn Header="Отрывок" 
                                   Binding="{Binding Excerpt}" 
-                                  Width="200"/>
-                            <!-- Сходство -->
+                                  Width="*"/>
                             <DataGridTemplateColumn Header="Процент совпадения" 
-                                      Width="200">
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Отчет" 
-                                      Width="100">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Button Content="Отчёт" Style="{StaticResource ButtonStyle}" Margin="5" Width="70"
-                                  Click="ViewReport_Click"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
+                                      Width="150">
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
