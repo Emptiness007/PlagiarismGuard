@@ -1,15 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using PlagiarismGuard.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PlagiarismGuard.Data
 {
     public class PlagiarismContext : DbContext
     {
+        private readonly string _connectionString;
+
         public DbSet<User> Users { get; set; }
         public DbSet<Document> Documents { get; set; }
         public DbSet<DocumentText> DocumentTexts { get; set; }
@@ -17,13 +15,22 @@ namespace PlagiarismGuard.Data
         public DbSet<CheckResult> CheckResults { get; set; }
         public DbSet<Report> Reports { get; set; }
 
+        public PlagiarismContext() : this(GetConnectionString())
+        {
+        }
+
+        public PlagiarismContext(string connectionString)
+        {
+            _connectionString = connectionString;
+        }
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseMySql("Server=127.0.0.1;Database=Plagiarism;Port=3307;user=root;pwd=;", new MySqlServerVersion(new Version(8, 0, 11)));
+            optionsBuilder.UseMySql(_connectionString, new MySqlServerVersion(new Version(8, 0, 11)));
         }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Настройка enum для ролей пользователей
             modelBuilder.Entity<User>()
                 .Property(u => u.Role)
                 .HasConversion<string>()
@@ -31,14 +38,12 @@ namespace PlagiarismGuard.Data
                 .HasDefaultValue("user")
                 .IsRequired();
 
-            // Настройка enum для форматов документов
             modelBuilder.Entity<Document>()
                 .Property(d => d.Format)
                 .HasConversion<string>()
                 .HasColumnType("varchar(4)")
                 .IsRequired();
 
-            // Уникальные ограничения
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username)
                 .IsUnique();
@@ -89,6 +94,16 @@ namespace PlagiarismGuard.Data
                 .WithMany()
                 .HasForeignKey(r => r.CheckId)
                 .OnDelete(DeleteBehavior.Cascade);
+        }
+
+        private static string GetConnectionString()
+        {
+            IConfiguration configuration = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+
+            return configuration.GetConnectionString("PlagiarismDatabase");
         }
     }
 }

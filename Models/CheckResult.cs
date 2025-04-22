@@ -14,18 +14,20 @@ namespace PlagiarismGuard.Models
         public int Id { get; set; }
 
         [ForeignKey("Check")]
+        [Column("check_id")]
         public int CheckId { get; set; }
 
         [ForeignKey("SourceDocument")]
+        [Column("source_document_id")]
         public int SourceDocumentId { get; set; }
 
         [Required]
-        [Column(TypeName = "longtext")]
+        [Column("matched_text")]
+
         public string MatchedText { get; set; }
 
         public float Similarity { get; set; }
 
-        // Навигационные свойства
         public Check Check { get; set; }
         public Document SourceDocument { get; set; }
     }

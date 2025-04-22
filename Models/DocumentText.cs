@@ -17,12 +17,12 @@ namespace PlagiarismGuard.Models
         public int DocumentId { get; set; }
 
         [Required]
-        [Column(TypeName = "longtext")]
+        [Column("text_content")]
         public string TextContent { get; set; }
+        [Column("processed_at")]
 
         public DateTime ProcessedAt { get; set; }
 
-        // Навигационное свойство
         public Document Document { get; set; }
     }
 }

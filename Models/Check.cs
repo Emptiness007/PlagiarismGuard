@@ -14,16 +14,17 @@ namespace PlagiarismGuard.Models
         public int Id { get; set; }
 
         [ForeignKey("Document")]
+        [Column("document_id")]
         public int DocumentId { get; set; }
 
         [ForeignKey("User")]
+        [Column("user_id")]
         public int UserId { get; set; }
 
         public float Similarity { get; set; }
-
+        [Column("checked_at")]
         public DateTime CheckedAt { get; set; }
 
-        // Навигационные свойства
         public Document Document { get; set; }
         public User User { get; set; }
     }

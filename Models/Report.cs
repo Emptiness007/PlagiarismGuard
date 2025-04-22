@@ -14,15 +14,17 @@ namespace PlagiarismGuard.Models
         public int Id { get; set; }
 
         [ForeignKey("Check")]
+        [Column("check_id")]
         public int CheckId { get; set; }
 
         [Required]
         [MaxLength(255)]
+        [Column("file_path")]
         public string FilePath { get; set; }
+        [Column("generated_at")]
 
         public DateTime GeneratedAt { get; set; }
 
-        // Навигационное свойство
         public Check Check { get; set; }
     }
 }
