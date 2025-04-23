@@ -18,7 +18,7 @@ namespace PlagiarismGuard.Services
                 Credentials = new NetworkCredential("alenafilimonovafilimonowa@yandex.ru", "uphnsxzyigrfgsrx"),
                 EnableSsl = true
             };
-            smtpClient.Send("Plagiarism Gurd", To, "Plagiarism", Message);
+            smtpClient.Send("alenafilimonovafilimonowa@yandex.ru", To, "Plagiarism", Message);
         }
     }
 }

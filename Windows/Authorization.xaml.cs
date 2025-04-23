@@ -50,7 +50,7 @@ namespace PlagiarismGuard.Windows
 
             CurrentUser.Instance = new CurrentUser { Id = user.Id, Username = user.Username, Role = user.Role };
 
-            var mainWindow = new MainWindow(_context);
+            var mainWindow = new MainWindow(user.Id);
             mainWindow.Show();
             Close();
         }

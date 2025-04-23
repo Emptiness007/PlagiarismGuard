@@ -14,13 +14,15 @@ namespace PlagiarismGuard.Models
         public int Id { get; set; }
 
         [ForeignKey("Document")]
+        [Column("document_id")]
         public int DocumentId { get; set; }
 
         [Required]
         [Column("text_content")]
         public string TextContent { get; set; }
+        [Column("text_hash")]
+        public string TextHash { get; set; }
         [Column("processed_at")]
-
         public DateTime ProcessedAt { get; set; }
 
         public Document Document { get; set; }

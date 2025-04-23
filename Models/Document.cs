@@ -14,6 +14,7 @@ namespace PlagiarismGuard.Models
         public int Id { get; set; }
 
         [ForeignKey("User")]
+        [Column("user_id")]
         public int UserId { get; set; }
 
         [Required]
