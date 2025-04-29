@@ -33,7 +33,6 @@ namespace PlagiarismGuard.Windows
             _correctCode = correctCode;
             EmailDisplay.Text = email;
 
-            // Инициализация таймера
             _secondsRemaining = 60;
             _timer = new DispatcherTimer
             {

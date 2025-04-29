@@ -50,10 +50,8 @@ namespace PlagiarismGuard.Windows
                 return;
             }
 
-            // Генерация кода подтверждения
             _confirmationCode = new Random().Next(100000, 999999).ToString();
 
-            // Отправка кода на email
             try
             {
                 SendMail.SendMessage($"Код для восстановления пароля: {_confirmationCode}", email);
@@ -65,19 +63,15 @@ namespace PlagiarismGuard.Windows
                 return;
             }
 
-            // Открытие окна подтверждения
             var confirmationWindow = new Confirmation(email, _confirmationCode);
             if (confirmationWindow.ShowDialog() == true)
             {
-                // Генерация нового временного пароля
                 string newPassword = user.GeneratePass();
                 string newPasswordHash = HashPassword(newPassword);
 
-                // Обновление пароля в базе
                 user.PasswordHash = newPasswordHash;
                 _context.SaveChanges();
 
-                // Отправка нового пароля на email
                 try
                 {
                     SendMail.SendMessage($"Ваш новый временный пароль: {newPassword}\nПожалуйста, смените его после входа в систему.", email);
