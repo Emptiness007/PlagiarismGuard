@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Win32;
 using PlagiarismGuard.Data;
 using PlagiarismGuard.Models;
 using PlagiarismGuard.Services;
@@ -30,12 +31,15 @@ namespace PlagiarismGuard.Pages
         {
             if (CurrentUser.Instance.Role == "admin")
             {
-                var documents = _context.Documents.ToList();
+                var documents = _context.Documents
+                    .Include(d => d.User)
+                    .ToList();
                 DocumentsDataGrid.ItemsSource = documents;
             }
             else
             {
                 var documents = _context.Documents
+                    .Include(d => d.User)
                     .Where(d => d.UserId == CurrentUser.Instance.Id)
                     .ToList();
                 DocumentsDataGrid.ItemsSource = documents;

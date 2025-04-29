@@ -81,7 +81,7 @@
                         <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
                     </Border>
                     <ControlTemplate.Triggers>
-                        <!-- Состояние фокуса (подсветка фиолетовым) -->
+                        <!-- Состояние фокуса  -->
                         <Trigger Property="IsFocused" Value="True">
                             <Setter TargetName="Border" Property="BorderBrush" Value="#636AE8"/>
                             <Setter TargetName="Border" Property="Effect">
@@ -144,14 +144,12 @@
         </Setter>
     </Style>
     <Style x:Key="RoundedDataGridStyle" TargetType="DataGrid">
-        <!-- Отключаем стандартные границы и скроллбар -->
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Background" Value="White"/>
         <Setter Property="HeadersVisibility" Value="Column"/>
         <Setter Property="GridLinesVisibility" Value="None"/>
         <Setter Property="RowHeaderWidth" Value="0"/>
 
-        <!-- Переопределяем шаблон DataGrid -->
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGrid">
@@ -236,7 +234,6 @@
             </Setter.Value>
         </Setter>
 
-        <!-- Стиль для ячеек -->
         <Setter Property="CellStyle">
             <Setter.Value>
                 <Style TargetType="DataGridCell">

@@ -36,7 +36,6 @@ namespace PlagiarismGuard.Services
             }
         }
 
-        // Проверка текста документа из базы
         public Check PerformCheck(int documentId, int userId)
         {
             var documentText = _context.DocumentTexts

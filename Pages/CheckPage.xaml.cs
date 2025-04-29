@@ -26,6 +26,7 @@ namespace PlagiarismGuard.Pages
             _context = context;
             _textExtractor = textExtractor;
             _plagiarismChecker = plagiarismChecker;
+            _currentDocumentId = 0;
         }
 
         public void ImportDocument()
@@ -44,12 +45,16 @@ namespace PlagiarismGuard.Pages
 
                 try
                 {
-                    if (_plagiarismChecker.DocumentExists(text))
+                    string textHash = _plagiarismChecker.ComputeTextHash(text);
+                    var existingDocumentText = _context.DocumentTexts
+                        .FirstOrDefault(dt => dt.TextHash == textHash);
+
+                    if (existingDocumentText != null)
                     {
                         MessageBox.Show("Документ с таким содержимым уже существует в системе!", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        _currentDocumentId = existingDocumentText.DocumentId;
                         DocumentTextBox.Text = text;
                         symbolCount.Text = $"Всего слов: {text.Split(' ').Length}";
-                        CheckText(text);
                         return;
                     }
 
@@ -82,20 +87,19 @@ namespace PlagiarismGuard.Pages
                     DocumentTextBox.Text = text;
                     symbolCount.Text = $"Всего слов: {text.Split(' ').Length}";
                     MessageBox.Show("Документ успешно загружен на сервер!");
-
-                    CheckText(text);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ошибка при обработке документа: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Ошибка при обработке документа: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
 
-        private void CheckText(string textToCheck)
+        private void CheckText()
         {
             try
             {
+                string textToCheck = DocumentTextBox.Text;
                 if (string.IsNullOrEmpty(textToCheck))
                 {
                     MessageBox.Show("Текст для проверки пуст!");
@@ -125,9 +129,9 @@ namespace PlagiarismGuard.Pages
                         SourceNo = index + 1,
                         SourceName = _context.Documents.First(d => d.Id == r.SourceDocumentId).FileName,
                         Excerpt = r.MatchedText,
-                        Similarity = $"{r.Similarity * 100:F2}%"
+                        Similarity = $"{r.Similarity * 100:F2}%" // Это поле уже передается в DataGrid
                     });
-                    ProgressBar.Value = avgSimilarity;
+                    ProgressBar.Value = avgSimilarity; // Устанавливаем значение ProgressBar
                     TextBlock.Text = $"Процент сходства - {avgSimilarity:F2}%";
                 }
                 else
@@ -139,13 +143,13 @@ namespace PlagiarismGuard.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при проверке: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при проверке: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void CheckButton_Click(object sender, RoutedEventArgs e)
         {
-            CheckText(DocumentTextBox.Text);
+            CheckText();
         }
 
         private void GenerateReportButton_Click(object sender, RoutedEventArgs e)
@@ -226,7 +230,7 @@ namespace PlagiarismGuard.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при создании отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при создании отчета: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }

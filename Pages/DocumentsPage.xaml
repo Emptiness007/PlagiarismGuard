@@ -20,14 +20,15 @@
             <Button x:Name="UploadButton" Content="Загрузить документ" Style="{StaticResource ButtonStyle}" Width="150" Click="UploadButton_Click"/>
         </StackPanel>
 
-        <DataGrid x:Name="DocumentsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Style="{StaticResource RoundedDataGridStyle}">
+        <DataGrid x:Name="DocumentsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Style="{StaticResource RoundedDataGridStyle}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="№" Binding="{Binding Id}" Width="50"/>
-                <DataGridTextColumn Header="Имя файла" Binding="{Binding FileName}" Width="200"/>
+                <DataGridTextColumn Header="Имя файла" Binding="{Binding FileName}" Width="130" />
+                <DataGridTextColumn Header="Пользователь" Binding="{Binding User.Username}" Width="110"/>
                 <DataGridTextColumn Header="Размер (байты)" Binding="{Binding FileSize}" Width="110"/>
                 <DataGridTextColumn Header="Дата загрузки" Binding="{Binding UploadedAt, StringFormat={}{0:dd.MM.yyyy HH:mm}}" Width="150"/>
                 <DataGridTextColumn Header="Формат" Binding="{Binding Format}" Width="80"/>
-                <DataGridTemplateColumn Header="Действия" Width="100" >
+                <DataGridTemplateColumn Header="Действия" Width="100">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Button Content="Удалить" Click="DeleteButton_Click" Tag="{Binding Id}" Style="{StaticResource ButtonStyle}" Width="80"/>
