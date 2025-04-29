@@ -17,8 +17,8 @@ namespace PlagiarismGuard.Pages
         private readonly PlagiarismContext _context;
         private readonly TextExtractorService _textExtractor;
         private readonly PlagiarismCheckService _plagiarismChecker;
-        private int _currentDocumentId; // Для документов, сохраненных админом
-        private Check _lastCheck; // Для хранения последней проверки (нужно для отчетов)
+        private int _currentDocumentId;
+        private Check _lastCheck;
 
         public CheckPage(PlagiarismContext context, TextExtractorService textExtractor, PlagiarismCheckService plagiarismChecker)
         {
@@ -37,64 +37,53 @@ namespace PlagiarismGuard.Pages
             if (openFileDialog.ShowDialog() == true)
             {
                 string filePath = openFileDialog.FileName;
+                string fileName = Path.GetFileName(filePath);
                 string format = Path.GetExtension(filePath).ToLower().TrimStart('.');
+                string serverPath = Path.Combine("uploads", "documents", Guid.NewGuid() + "." + format);
                 string text = _textExtractor.ExtractText(filePath, format);
 
                 try
                 {
-                    // Админ загружает документ на сервер
-                    if (CurrentUser.Instance.Role == "admin")
+                    if (_plagiarismChecker.DocumentExists(text))
                     {
-                        string fileName = Path.GetFileName(filePath);
-                        string serverPath = Path.Combine("uploads", "documents", Guid.NewGuid() + "." + format);
-
-                        // Проверка на дубликат
-                        if (_plagiarismChecker.DocumentExists(text))
-                        {
-                            MessageBox.Show("Документ с таким содержимым уже существует в системе!", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
-                            DocumentTextBox.Text = text;
-                            return;
-                        }
-
-                        // Сохранение файла на сервере
-                        Directory.CreateDirectory(Path.GetDirectoryName(serverPath));
-                        File.Copy(filePath, serverPath);
-
-                        // Сохранение в базе
-                        var document = new Models.Document
-                        {
-                            UserId = CurrentUser.Instance.Id,
-                            FileName = fileName,
-                            FilePath = serverPath,
-                            FileSize = new FileInfo(filePath).Length,
-                            UploadedAt = DateTime.Now,
-                            Format = format
-                        };
-                        _context.Documents.Add(document);
-                        _context.SaveChanges();
-
-                        var documentText = new DocumentText
-                        {
-                            DocumentId = document.Id,
-                            TextContent = text,
-                            TextHash = _plagiarismChecker.ComputeTextHash(text),
-                            ProcessedAt = DateTime.Now
-                        };
-                        _context.DocumentTexts.Add(documentText);
-                        _context.SaveChanges();
-
-                        _currentDocumentId = document.Id;
+                        MessageBox.Show("Документ с таким содержимым уже существует в системе!", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
                         DocumentTextBox.Text = text;
                         symbolCount.Text = $"Всего слов: {text.Split(' ').Length}";
-                        MessageBox.Show("Документ успешно загружен на сервер!");
+                        CheckText(text);
+                        return;
                     }
-                    else // Обычный пользователь
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(serverPath));
+                    File.Copy(filePath, serverPath);
+
+                    var document = new Models.Document
                     {
-                        _currentDocumentId = 0; // Документ не сохраняется
-                        DocumentTextBox.Text = text;
-                        symbolCount.Text = $"Всего слов: {text.Split(' ').Length}";
-                        CheckText(text); // Автоматическая проверка
-                    }
+                        UserId = CurrentUser.Instance.Id,
+                        FileName = fileName,
+                        FilePath = serverPath,
+                        FileSize = new FileInfo(filePath).Length,
+                        UploadedAt = DateTime.Now,
+                        Format = format
+                    };
+                    _context.Documents.Add(document);
+                    _context.SaveChanges();
+
+                    var documentText = new DocumentText
+                    {
+                        DocumentId = document.Id,
+                        TextContent = text,
+                        TextHash = _plagiarismChecker.ComputeTextHash(text),
+                        ProcessedAt = DateTime.Now
+                    };
+                    _context.DocumentTexts.Add(documentText);
+                    _context.SaveChanges();
+
+                    _currentDocumentId = document.Id;
+                    DocumentTextBox.Text = text;
+                    symbolCount.Text = $"Всего слов: {text.Split(' ').Length}";
+                    MessageBox.Show("Документ успешно загружен на сервер!");
+
+                    CheckText(text);
                 }
                 catch (Exception ex)
                 {
@@ -113,7 +102,6 @@ namespace PlagiarismGuard.Pages
                     return;
                 }
 
-                // Проверка текста только с документами, загруженными админом
                 var adminDocuments = _context.DocumentTexts
                     .Where(dt => _context.Documents.Any(d => d.Id == dt.DocumentId && _context.Users.Any(u => u.Id == d.UserId && u.Role == "admin")))
                     .ToList();
@@ -124,7 +112,6 @@ namespace PlagiarismGuard.Pages
                     return;
                 }
 
-                // Выполнение проверки
                 _lastCheck = _plagiarismChecker.PerformCheckText(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
                 var results = _context.CheckResults
                     .Where(cr => cr.CheckId == _lastCheck.Id)

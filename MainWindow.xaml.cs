@@ -49,6 +49,7 @@ namespace PlagiarismGuard
             if (CurrentUser.Instance.Role == "admin")
             {
                 UsersText.Visibility = Visibility.Visible;
+                ImportButton.Visibility = Visibility.Collapsed;
             }
             else
             {
@@ -64,13 +65,14 @@ namespace PlagiarismGuard
 
         private void CheckPageButton_Click(object sender, RoutedEventArgs e)
         {
-            CheckPageText.Tag = null;
             HistoryText.Tag = null;
             DocumentsText.Tag = null;
             UsersText.Tag = null;
 
             CheckPageText.Tag = "Active";
             MainFrame.Navigate(new CheckPage(_context, _textExtractor, _plagiarismChecker));
+            isSidebarOpen = false;
+            Sidebar.Visibility = Visibility.Collapsed;
         }
 
         private void HistoryButton_Click(object sender, RoutedEventArgs e)
@@ -82,16 +84,26 @@ namespace PlagiarismGuard
 
         private void DocumentsButton_Click(object sender, RoutedEventArgs e)
         {
-            //MainFrame.Navigate(new DocumentsPage());
-            //isSidebarOpen = false;
-            //Sidebar.Visibility = Visibility.Collapsed;
+            HistoryText.Tag = null;
+            CheckPageText.Tag = null;
+            UsersText.Tag = null;
+
+            DocumentsText.Tag = "Active";
+            MainFrame.Navigate(new DocumentsPage(_context, _textExtractor, _plagiarismChecker));
+            isSidebarOpen = false;
+            Sidebar.Visibility = Visibility.Collapsed;
         }
 
         private void UsersButton_Click(object sender, RoutedEventArgs e)
         {
-            //MainFrame.Navigate(new UsersPage());
-            //isSidebarOpen = false;
-            //Sidebar.Visibility = Visibility.Collapsed;
+            HistoryText.Tag = null;
+            CheckPageText.Tag = null;
+            DocumentsText.Tag = null;
+
+            UsersText.Tag = "Active";
+            MainFrame.Navigate(new UsersPage(_context));
+            isSidebarOpen = false;
+            Sidebar.Visibility = Visibility.Collapsed;
         }
 
         private void LogoutButton_Click(object sender, RoutedEventArgs e)
@@ -107,17 +119,6 @@ namespace PlagiarismGuard
             {
                 checkPage.ImportDocument();
             }
-        }
-
-        private void LoadUserDocuments()
-        {
-            var userDocuments = _context.Documents
-                .Where(d => d.UserId == CurrentUser.Instance.Id)
-                .ToList();
-        }
-
-        private void LoadUserChecks()
-        {
         }
     }
 }
