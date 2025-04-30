@@ -129,10 +129,10 @@ namespace PlagiarismGuard.Pages
                         SourceNo = index + 1,
                         SourceName = _context.Documents.First(d => d.Id == r.SourceDocumentId).FileName,
                         Excerpt = r.MatchedText,
-                        Similarity = $"{r.Similarity * 100:F2}%"
+                        Similarity = $"{r.Similarity * 100}%"
                     });
                     ProgressBar.Value = avgSimilarity; 
-                    TextBlock.Text = $"Процент сходства - {avgSimilarity:F2}%";
+                    TextBlock.Text = $"Процент плагиата - {avgSimilarity}%";
                 }
                 else
                 {
@@ -192,7 +192,7 @@ namespace PlagiarismGuard.Pages
                             .Alignment = Alignment.center;
                         doc.InsertParagraph($"Дата проверки: {_lastCheck.CheckedAt:dd.MM.yyyy HH:mm}")
                             .FontSize(14);
-                        doc.InsertParagraph($"Процент сходства: {_lastCheck.Similarity * 100:F2}%")
+                        doc.InsertParagraph($"Процент плагиата: {_lastCheck.Similarity * 100:F2}%")
                             .FontSize(14);
                         doc.InsertParagraph();
 
@@ -210,7 +210,7 @@ namespace PlagiarismGuard.Pages
                                 table.Rows[i + 1].Cells[0].Paragraphs[0].Append((i + 1).ToString());
                                 table.Rows[i + 1].Cells[1].Paragraphs[0].Append(_context.Documents.First(d => d.Id == result.SourceDocumentId).FileName);
                                 table.Rows[i + 1].Cells[2].Paragraphs[0].Append(result.MatchedText);
-                                table.Rows[i + 1].Cells[3].Paragraphs[0].Append($"{result.Similarity * 100:F2}%");
+                                table.Rows[i + 1].Cells[3].Paragraphs[0].Append($"{result.Similarity * 100}%");
                             }
 
                             doc.InsertTable(table);

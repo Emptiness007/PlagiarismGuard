@@ -46,7 +46,6 @@ namespace PlagiarismGuard.Services
             return PerformCheckText(documentText, documentId, userId);
         }
 
-        // Проверка текста из TextBox
         public Check PerformCheckText(string inputText, int documentId, int userId)
         {
             if (string.IsNullOrEmpty(inputText))

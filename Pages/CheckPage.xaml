@@ -21,7 +21,7 @@
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.Row="1" Margin="0,10,0,0">
             <Grid>
-                <TextBlock x:Name="TextBlock" VerticalAlignment="Top" Padding="4,0,0,0" Text="Процент сходства - 45%" FontFamily="/Fonts/#Anonymous Pro" FontSize="16"/>
+                <TextBlock x:Name="TextBlock" VerticalAlignment="Top" Padding="4,0,0,0" Text="Процент плагиата - 0%" FontFamily="/Fonts/#Anonymous Pro" FontSize="16"/>
                 <ProgressBar x:Name="ProgressBar" Margin="0,25,0,0" Height="10" VerticalAlignment="Top" Value="45">
                     <ProgressBar.Foreground>
                         <SolidColorBrush Color="#636AE8"/>
