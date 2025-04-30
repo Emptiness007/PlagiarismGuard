@@ -33,7 +33,7 @@ namespace PlagiarismGuard.Pages
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Filter = "Text Files (*.txt)|*.txt|Word Documents (*.docx)|*.docx|PDF Files (*.pdf)|*.pdf"
+                Filter = "Word Documents (*.docx)|*.docx|PDF Files (*.pdf)|*.pdf"
             };
             if (openFileDialog.ShowDialog() == true)
             {
@@ -129,9 +129,9 @@ namespace PlagiarismGuard.Pages
                         SourceNo = index + 1,
                         SourceName = _context.Documents.First(d => d.Id == r.SourceDocumentId).FileName,
                         Excerpt = r.MatchedText,
-                        Similarity = $"{r.Similarity * 100:F2}%" // Это поле уже передается в DataGrid
+                        Similarity = $"{r.Similarity * 100:F2}%"
                     });
-                    ProgressBar.Value = avgSimilarity; // Устанавливаем значение ProgressBar
+                    ProgressBar.Value = avgSimilarity; 
                     TextBlock.Text = $"Процент сходства - {avgSimilarity:F2}%";
                 }
                 else
@@ -190,8 +190,6 @@ namespace PlagiarismGuard.Pages
                             .FontSize(16)
                             .Bold()
                             .Alignment = Alignment.center;
-                        doc.InsertParagraph($"Пользователь: {CurrentUser.Instance.Id}")
-                            .FontSize(14);
                         doc.InsertParagraph($"Дата проверки: {_lastCheck.CheckedAt:dd.MM.yyyy HH:mm}")
                             .FontSize(14);
                         doc.InsertParagraph($"Процент сходства: {_lastCheck.Similarity * 100:F2}%")

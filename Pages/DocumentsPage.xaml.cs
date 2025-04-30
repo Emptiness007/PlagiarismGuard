@@ -51,7 +51,7 @@ namespace PlagiarismGuard.Pages
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Filter = "Text Files (*.txt)|*.txt|Word Documents (*.docx)|*.docx|PDF Files (*.pdf)|*.pdf"
+                Filter = "Word Documents (*.docx)|*.docx|PDF Files (*.pdf)|*.pdf"
             };
             if (openFileDialog.ShowDialog() == true)
             {

@@ -3,6 +3,7 @@ using System.Text;
 using Xceed.Words.NET;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
+using Xceed.Document.NET;
 
 namespace PlagiarismGuard.Services
 {
@@ -12,8 +13,6 @@ namespace PlagiarismGuard.Services
         {
             switch (format.ToLower())
             {
-                case "txt":
-                    return File.ReadAllText(filePath);
                 case "docx":
                     return ExtractFromDocx(filePath);
                 case "pdf":
@@ -29,7 +28,33 @@ namespace PlagiarismGuard.Services
             {
                 using (var doc = DocX.Load(filePath))
                 {
-                    return doc.Text;
+                    StringBuilder text = new StringBuilder();
+                    bool skipTitlePage = true;
+
+                    foreach (var paragraph in doc.Paragraphs)
+                    {
+                        if (string.IsNullOrWhiteSpace(paragraph.Text))
+                            continue;
+
+                        if (IsHeading(paragraph))
+                            continue;
+
+                        if (IsCaption(paragraph))
+                            continue;
+
+                        if (skipTitlePage && IsTitlePageContent(paragraph))
+                            continue;
+
+                        if (paragraph.StyleName != null && paragraph.StyleName.Equals("Heading 1", StringComparison.OrdinalIgnoreCase))
+                        {
+                            skipTitlePage = false;
+                            continue;
+                        }
+
+                        text.AppendLine(paragraph.Text);
+                    }
+
+                    return text.ToString().Trim();
                 }
             }
             catch (Exception ex)
@@ -57,6 +82,45 @@ namespace PlagiarismGuard.Services
             {
                 throw new Exception($"Ошибка при извлечении текста из .pdf: {ex.Message}");
             }
+        }
+
+        private bool IsHeading(Paragraph paragraph)
+        {
+            if (paragraph.StyleName != null &&
+                (paragraph.StyleName.StartsWith("Heading", StringComparison.OrdinalIgnoreCase) ||
+                 paragraph.StyleName.Contains("Заголовок", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool IsCaption(Paragraph paragraph)
+        {
+            if (paragraph.StyleName != null &&
+                paragraph.StyleName.Equals("Caption", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            string[] captionKeywords = { "Рисунок", "Таблица", "Figure", "Table", "Caption" };
+            if (captionKeywords.Any(keyword => paragraph.Text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+            if (paragraph.Text.Length < 100)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool IsTitlePageContent(Paragraph paragraph)
+        {
+            string[] titlePageKeywords = { "Содержание", "Курсовая работа", "Дипломная работа", "учреждение", "университет" };
+            return titlePageKeywords.Any(keyword => paragraph.Text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
         }
     }
 }
