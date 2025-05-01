@@ -24,6 +24,7 @@ namespace PlagiarismGuard.Models
         public float Similarity { get; set; }
         [Column("checked_at")]
         public DateTime CheckedAt { get; set; }
+        public bool IsInternetMatch { get; set; }
 
         public Document Document { get; set; }
         public User User { get; set; }

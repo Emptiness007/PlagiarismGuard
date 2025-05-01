@@ -27,6 +27,7 @@ namespace PlagiarismGuard.Models
         public string MatchedText { get; set; }
 
         public float Similarity { get; set; }
+        public string SourceUrl { get; set; }
 
         public Check Check { get; set; }
         public Document SourceDocument { get; set; }

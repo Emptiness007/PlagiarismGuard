@@ -8,6 +8,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using Xceed.Document.NET;
+using Xceed.Drawing;
 using Xceed.Words.NET;
 
 namespace PlagiarismGuard.Pages
@@ -95,7 +96,7 @@ namespace PlagiarismGuard.Pages
             }
         }
 
-        private void CheckText()
+        private async void CheckText()
         {
             try
             {
@@ -116,7 +117,7 @@ namespace PlagiarismGuard.Pages
                     return;
                 }
 
-                _lastCheck = _plagiarismChecker.PerformCheckText(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
+                _lastCheck = await _plagiarismChecker.PerformInternetCheck(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
                 var results = _context.CheckResults
                     .Where(cr => cr.CheckId == _lastCheck.Id)
                     .ToList();
@@ -127,12 +128,14 @@ namespace PlagiarismGuard.Pages
                     SourceDataGrid.ItemsSource = results.Select((r, index) => new
                     {
                         SourceNo = index + 1,
-                        SourceName = _context.Documents.First(d => d.Id == r.SourceDocumentId).FileName,
+                        SourceName = r.SourceDocumentId == 0 ? (r.SourceUrl ?? "Интернет-источник") : _context.Documents.First(d => d.Id == r.SourceDocumentId).FileName,
                         Excerpt = r.MatchedText,
-                        Similarity = $"{r.Similarity * 100}%"
+                        Similarity = $"{r.Similarity * 100:F2}%"
                     });
-                    ProgressBar.Value = avgSimilarity; 
-                    TextBlock.Text = $"Процент плагиата - {avgSimilarity}%";
+                    ProgressBar.Value = avgSimilarity;
+                    TextBlock.Text = $"Процент плагиата - {avgSimilarity:F2}%";
+                    if (_lastCheck.IsInternetMatch)
+                        TextBlock.Text += " (обнаружены совпадения в интернете)";
                 }
                 else
                 {
@@ -194,6 +197,10 @@ namespace PlagiarismGuard.Pages
                             .FontSize(14);
                         doc.InsertParagraph($"Процент плагиата: {_lastCheck.Similarity * 100:F2}%")
                             .FontSize(14);
+                        if (_lastCheck.IsInternetMatch)
+                            doc.InsertParagraph("Обнаружены совпадения с интернет-источниками")
+                                .FontSize(14)
+                                .Color(Color.Red);
                         doc.InsertParagraph();
 
                         if (results.Any())
@@ -208,9 +215,9 @@ namespace PlagiarismGuard.Pages
                             {
                                 var result = results[i];
                                 table.Rows[i + 1].Cells[0].Paragraphs[0].Append((i + 1).ToString());
-                                table.Rows[i + 1].Cells[1].Paragraphs[0].Append(_context.Documents.First(d => d.Id == result.SourceDocumentId).FileName);
+                                table.Rows[i + 1].Cells[1].Paragraphs[0].Append(result.SourceDocumentId == 0 ? (result.SourceUrl ?? "Интернет-источник") : _context.Documents.First(d => d.Id == result.SourceDocumentId).FileName);
                                 table.Rows[i + 1].Cells[2].Paragraphs[0].Append(result.MatchedText);
-                                table.Rows[i + 1].Cells[3].Paragraphs[0].Append($"{result.Similarity * 100}%");
+                                table.Rows[i + 1].Cells[3].Paragraphs[0].Append($"{result.Similarity * 100:F2}%");
                             }
 
                             doc.InsertTable(table);

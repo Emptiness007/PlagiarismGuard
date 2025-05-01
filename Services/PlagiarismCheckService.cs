@@ -1,5 +1,6 @@
 ﻿using PlagiarismGuard.Data;
 using PlagiarismGuard.Models;
+using ScanDocumentsPriemDev.Classes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -166,6 +167,75 @@ namespace PlagiarismGuard.Services
                 }
             }
             return d[n, m];
+        }
+        public async Task<Check> PerformInternetCheck(string inputText, int documentId, int userId)
+        {
+            if (string.IsNullOrEmpty(inputText))
+                throw new Exception("Текст для проверки не указан");
+
+            var sentences = Regex.Split(inputText, @"(?<=[.!?])\s+").Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+            var results = new List<CheckResult>();
+
+            // Проверка на совпадения с интернет-источниками через Yandex GPT
+            foreach (var sentence in sentences)
+            {
+                if (sentence.Length < 20) continue; // Пропускаем короткие предложения для оптимизации
+
+                var (similarity, sourceInfo) = await CheckInternetSimilarity(sentence);
+                if (similarity > 0.8)
+                {
+                    var checkResult = new CheckResult
+                    {
+                        SourceDocumentId = 0, // 0 для интернет-источников
+                        MatchedText = sentence,
+                        Similarity = (float)similarity,
+                        SourceUrl = sourceInfo // Сохраняем пояснение от GPT
+                    };
+                    results.Add(checkResult);
+                }
+            }
+
+            // Объединяем с локальной проверкой
+            var localCheck = PerformCheckText(inputText, documentId, userId);
+            results.AddRange(_context.CheckResults.Where(cr => cr.CheckId == localCheck.Id));
+
+            var check = new Check
+            {
+                DocumentId = documentId,
+                UserId = userId,
+                Similarity = results.Any() ? results.Average(r => r.Similarity) : 0,
+                CheckedAt = DateTime.Now,
+                IsInternetMatch = results.Any(r => r.SourceDocumentId == 0) // Флаг для интернет-совпадений
+            };
+            _context.Checks.Add(check);
+            _context.SaveChanges();
+
+            foreach (var result in results)
+            {
+                result.CheckId = check.Id;
+                _context.CheckResults.Add(result);
+            }
+            _context.SaveChanges();
+
+            return check;
+        }
+
+        private async Task<(double Similarity, string SourceInfo)> CheckInternetSimilarity(string text)
+        {
+            var param = YandexGPT.SetParams();
+            param.messages.Add(new YandexGPT.Param.Message
+            {
+                text = $"Вероятно ли, что следующий текст встречается в открытых интернет-источниках, указывая на возможный плагиат? Текст: \"{text}\". Верните оценку от 0 до 1 (1 — очень вероятно плагиат) и краткое пояснение (максимум 100 символов) в формате: оценка\nпояснение."
+            });
+
+            string response = await YandexGPT.Communication(param);
+            var parts = response.Split('\n', 2);
+            if (parts.Length > 0 && double.TryParse(parts[0].Trim(), out double similarity))
+            {
+                string sourceInfo = parts.Length > 1 ? parts[1].Trim() : "Источник не указан";
+                return (similarity, sourceInfo.Length > 100 ? sourceInfo.Substring(0, 100) : sourceInfo);
+            }
+            return (0, "Нет совпадений");
         }
     }
 }
