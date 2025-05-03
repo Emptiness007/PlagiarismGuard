@@ -15,6 +15,7 @@ namespace PlagiarismGuard
         private readonly PlagiarismContext _context;
         private readonly TextExtractorService _textExtractor;
         private readonly PlagiarismCheckService _plagiarismChecker;
+        private readonly ReportGeneratorService _reportGeneratorService;
         private bool isSidebarOpen = false;
 
         public MainWindow(int userId)
@@ -23,6 +24,7 @@ namespace PlagiarismGuard
             _context = new PlagiarismContext();
             _textExtractor = new TextExtractorService();
             _plagiarismChecker = new PlagiarismCheckService(_context);
+            _reportGeneratorService = new ReportGeneratorService(_context);
             CurrentUser.Instance.Id = userId;
             LoadUserData();
             ConfigureUIForRole();
@@ -49,7 +51,6 @@ namespace PlagiarismGuard
             if (CurrentUser.Instance.Role == "admin")
             {
                 UsersText.Visibility = Visibility.Visible;
-                ImportButton.Visibility = Visibility.Collapsed;
             }
             else
             {
@@ -77,9 +78,14 @@ namespace PlagiarismGuard
 
         private void HistoryButton_Click(object sender, RoutedEventArgs e)
         {
-            //MainFrame.Navigate(new HistoryPage());
-            //isSidebarOpen = false;
-            //Sidebar.Visibility = Visibility.Collapsed;
+            CheckPageText.Tag = null;
+            DocumentsText.Tag = null;
+            UsersText.Tag = null;
+
+            HistoryText.Tag = "Active";
+            MainFrame.Navigate(new HistoryPage(_context, _reportGeneratorService));
+            isSidebarOpen = false;
+            Sidebar.Visibility = Visibility.Collapsed;
         }
 
         private void DocumentsButton_Click(object sender, RoutedEventArgs e)

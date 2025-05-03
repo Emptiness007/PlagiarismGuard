@@ -51,7 +51,7 @@ namespace PlagiarismGuard.Windows
                 ErrorMessage.Visibility = Visibility.Visible;
                 return;
             }
-            Regex passwordRegex = new Regex(@"(?=.*[0-9])(?=.*[!@#$%^&?*\-_=])(?=.*[a-z])(?=.*[A-Z])[0-9a-zA-Z!@#$%^&?*\-_=]{10,}");
+            Regex passwordRegex = new Regex(@"(?=.*[0-9])(?=.*[!@#$%^&?*\-_=])(?=.*[a-z])(?=.*[A-Z])[0-9a-zA-Z!@#$%^&?*\-_=]{8,}");
             if (!passwordRegex.IsMatch(password))
             {
                 ErrorMessage.Text = "Пароль не соответствует требованиям";
@@ -96,7 +96,7 @@ namespace PlagiarismGuard.Windows
             var confirmationWindow = new Confirmation(email, _confirmationCode);
             if (confirmationWindow.ShowDialog() == true)
             {
-                string passwordHash = HashPassword(password);
+                string passwordHash = PasswordHelper.HashPassword(password);
                 var newUser = new User
                 {
                     Username = username,
@@ -127,20 +127,6 @@ namespace PlagiarismGuard.Windows
             var authWindow = new Windows.Authorization();
             authWindow.Show();
             Close();
-        }
-
-        private string HashPassword(string password)
-        {
-            using (SHA256 sha256 = SHA256.Create())
-            {
-                byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-                StringBuilder builder = new StringBuilder();
-                for (int i = 0; i < bytes.Length; i++)
-                {
-                    builder.Append(bytes[i].ToString("x2"));
-                }
-                return builder.ToString();
-            }
         }
     }
 }

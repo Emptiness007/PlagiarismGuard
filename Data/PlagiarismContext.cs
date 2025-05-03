@@ -13,7 +13,6 @@ namespace PlagiarismGuard.Data
         public DbSet<DocumentText> DocumentTexts { get; set; }
         public DbSet<Check> Checks { get; set; }
         public DbSet<CheckResult> CheckResults { get; set; }
-        public DbSet<Report> Reports { get; set; }
 
         public PlagiarismContext() : this(GetConnectionString())
         {
@@ -22,6 +21,7 @@ namespace PlagiarismGuard.Data
         public PlagiarismContext(string connectionString)
         {
             _connectionString = connectionString;
+            Database.EnsureCreated();
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -89,14 +89,9 @@ namespace PlagiarismGuard.Data
                 .HasForeignKey(cr => cr.SourceDocumentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Report>()
-                .HasOne(r => r.Check)
-                .WithMany()
-                .HasForeignKey(r => r.CheckId)
-                .OnDelete(DeleteBehavior.Cascade);
         }
 
-        private static string GetConnectionString()
+        public static string GetConnectionString()
         {
             IConfiguration configuration = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)

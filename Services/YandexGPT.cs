@@ -26,8 +26,8 @@ namespace ScanDocumentsPriemDev.Classes
                 completionOptions = new Param.CompletionOptions()
                 {
                     stream = false,
-                    temperature = 0.9f,
-                    maxTokens = "2000"
+                    temperature = 0.7f,
+                    maxTokens = "7000"
                 },
                 messages = new List<Param.Message>()
             };
@@ -94,6 +94,20 @@ namespace ScanDocumentsPriemDev.Classes
                 public string role { get; set; }
                 public string text { get; set; }
             }
+        }
+        public static List<string> SplitText(string text, int maxLength = 5000)
+        {
+            var chunks = new List<string>();
+            int currentIndex = 0;
+
+            while (currentIndex < text.Length)
+            {
+                int chunkLength = Math.Min(maxLength, text.Length - currentIndex);
+                chunks.Add(text.Substring(currentIndex, chunkLength));
+                currentIndex += chunkLength;
+            }
+
+            return chunks;
         }
     }
 }

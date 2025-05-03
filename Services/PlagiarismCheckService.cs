@@ -52,36 +52,55 @@ namespace PlagiarismGuard.Services
             if (string.IsNullOrEmpty(inputText))
                 throw new Exception("Текст для проверки не указан");
 
-            var otherDocs = _context.DocumentTexts
-                .Where(dt => dt.DocumentId != documentId)
+            var sentences = Regex.Split(inputText, @"(?<=[.!?])\s+")
+                .Where(s => !string.IsNullOrWhiteSpace(s))
                 .ToList();
+            var adminDocs = _context.DocumentTexts
+                .Where(dt => dt.DocumentId != documentId &&
+                             _context.Documents.Any(d => d.Id == dt.DocumentId &&
+                                                        _context.Users.Any(u => u.Id == d.UserId && u.Role == "admin")))
+                .ToList();
+
             var results = new List<CheckResult>();
+            var matchedTexts = new HashSet<string>();
 
-            foreach (var otherDoc in otherDocs)
+            foreach (var sentence in sentences)
             {
-                if (string.IsNullOrEmpty(otherDoc.TextContent))
-                    continue;
-
-                var (similarity, matchedText) = CalculateSimilarity(inputText, otherDoc.TextContent);
-                if (similarity > 0.8)
+                foreach (var adminDoc in adminDocs)
                 {
-                    var checkResult = new CheckResult
+                    if (string.IsNullOrEmpty(adminDoc.TextContent))
+                        continue;
+
+                    var (similarity, fullMatchedText) = CalculateSimilarity(sentence, adminDoc.TextContent);
+
+                    if (similarity > 0.8 && !matchedTexts.Contains(fullMatchedText))
                     {
-                        SourceDocumentId = otherDoc.DocumentId,
-                        MatchedText = matchedText,
-                        Similarity = (float)similarity
-                    };
-                    results.Add(checkResult);
+                        matchedTexts.Add(fullMatchedText);
+                        results.Add(new CheckResult
+                        {
+                            SourceDocumentId = adminDoc.DocumentId,
+                            MatchedText = fullMatchedText, 
+                            Similarity = (float)similarity,
+                            SourceUrl = null
+                        });
+                    }
                 }
             }
+
+            int totalInputLength = inputText.Length;
+            int totalMatchedLength = results.Sum(r => r.MatchedText.Length);
+            float plagiarismPercentage = totalInputLength > 0 ?
+                (float)totalMatchedLength / totalInputLength * 100 : 0;
 
             var check = new Check
             {
                 DocumentId = documentId,
                 UserId = userId,
-                Similarity = results.Any() ? results.Average(r => r.Similarity) : 0,
-                CheckedAt = DateTime.Now
+                Similarity = plagiarismPercentage,
+                CheckedAt = DateTime.Now,
+                IsInternetMatch = false
             };
+
             _context.Checks.Add(check);
             _context.SaveChanges();
 
@@ -167,75 +186,6 @@ namespace PlagiarismGuard.Services
                 }
             }
             return d[n, m];
-        }
-        public async Task<Check> PerformInternetCheck(string inputText, int documentId, int userId)
-        {
-            if (string.IsNullOrEmpty(inputText))
-                throw new Exception("Текст для проверки не указан");
-
-            var sentences = Regex.Split(inputText, @"(?<=[.!?])\s+").Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-            var results = new List<CheckResult>();
-
-            // Проверка на совпадения с интернет-источниками через Yandex GPT
-            foreach (var sentence in sentences)
-            {
-                if (sentence.Length < 20) continue; // Пропускаем короткие предложения для оптимизации
-
-                var (similarity, sourceInfo) = await CheckInternetSimilarity(sentence);
-                if (similarity > 0.8)
-                {
-                    var checkResult = new CheckResult
-                    {
-                        SourceDocumentId = 0, // 0 для интернет-источников
-                        MatchedText = sentence,
-                        Similarity = (float)similarity,
-                        SourceUrl = sourceInfo // Сохраняем пояснение от GPT
-                    };
-                    results.Add(checkResult);
-                }
-            }
-
-            // Объединяем с локальной проверкой
-            var localCheck = PerformCheckText(inputText, documentId, userId);
-            results.AddRange(_context.CheckResults.Where(cr => cr.CheckId == localCheck.Id));
-
-            var check = new Check
-            {
-                DocumentId = documentId,
-                UserId = userId,
-                Similarity = results.Any() ? results.Average(r => r.Similarity) : 0,
-                CheckedAt = DateTime.Now,
-                IsInternetMatch = results.Any(r => r.SourceDocumentId == 0) // Флаг для интернет-совпадений
-            };
-            _context.Checks.Add(check);
-            _context.SaveChanges();
-
-            foreach (var result in results)
-            {
-                result.CheckId = check.Id;
-                _context.CheckResults.Add(result);
-            }
-            _context.SaveChanges();
-
-            return check;
-        }
-
-        private async Task<(double Similarity, string SourceInfo)> CheckInternetSimilarity(string text)
-        {
-            var param = YandexGPT.SetParams();
-            param.messages.Add(new YandexGPT.Param.Message
-            {
-                text = $"Вероятно ли, что следующий текст встречается в открытых интернет-источниках, указывая на возможный плагиат? Текст: \"{text}\". Верните оценку от 0 до 1 (1 — очень вероятно плагиат) и краткое пояснение (максимум 100 символов) в формате: оценка\nпояснение."
-            });
-
-            string response = await YandexGPT.Communication(param);
-            var parts = response.Split('\n', 2);
-            if (parts.Length > 0 && double.TryParse(parts[0].Trim(), out double similarity))
-            {
-                string sourceInfo = parts.Length > 1 ? parts[1].Trim() : "Источник не указан";
-                return (similarity, sourceInfo.Length > 100 ? sourceInfo.Substring(0, 100) : sourceInfo);
-            }
-            return (0, "Нет совпадений");
         }
     }
 }

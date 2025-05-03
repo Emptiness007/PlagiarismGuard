@@ -104,7 +104,7 @@ namespace PlagiarismGuard.Services
                 return true;
             }
 
-            string[] captionKeywords = { "Рисунок", "Таблица", "Figure", "Table", "Caption" };
+            string[] captionKeywords = { "ГЛАВА", "Глава", "Рисунок", "Таблица", "Figure", "Table", "Caption" };
             if (captionKeywords.Any(keyword => paragraph.Text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
             {
                 return true;

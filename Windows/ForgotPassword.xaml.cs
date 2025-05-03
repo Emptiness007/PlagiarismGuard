@@ -67,7 +67,7 @@ namespace PlagiarismGuard.Windows
             if (confirmationWindow.ShowDialog() == true)
             {
                 string newPassword = user.GeneratePass();
-                string newPasswordHash = HashPassword(newPassword);
+                string newPasswordHash = PasswordHelper.HashPassword(newPassword);
 
                 user.PasswordHash = newPasswordHash;
                 _context.SaveChanges();
@@ -96,20 +96,6 @@ namespace PlagiarismGuard.Windows
             var authWindow = new Authorization();
             authWindow.Show();
             Close();
-        }
-
-        private string HashPassword(string password)
-        {
-            using (SHA256 sha256 = SHA256.Create())
-            {
-                byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-                StringBuilder builder = new StringBuilder();
-                for (int i = 0; i < bytes.Length; i++)
-                {
-                    builder.Append(bytes[i].ToString("x2"));
-                }
-                return builder.ToString();
-            }
         }
     }
 }

@@ -1,0 +1,39 @@
+﻿<Page x:Class="PlagiarismGuard.Pages.HistoryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:PlagiarismGuard.Pages"
+      mc:Ignorable="d" 
+      Title="HistoryPage">
+
+    <Grid Margin="10">
+        <Grid.Resources>
+            <ResourceDictionary Source="/Styles/Style.xaml"/>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="История проверок" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
+
+        <DataGrid x:Name="ChecksDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" 
+                  Style="{StaticResource RoundedDataGridStyle}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Документ" Binding="{Binding Document.FileName}" Width="150"/>
+                <DataGridTextColumn Header="Пользователь" Binding="{Binding User.Username}" Width="120"/>
+                <DataGridTextColumn Header="Процент плагиата" Binding="{Binding Similarity, StringFormat={}{0:F2}%}" Width="120"/>
+                <DataGridTextColumn Header="Дата проверки" Binding="{Binding CheckedAt, StringFormat={}{0:dd.MM.yyyy HH:mm}}" Width="150"/>
+                <DataGridTemplateColumn Header="Отчет" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="Скачать" Click="GenerateReportButton_Click" Tag="{Binding Id}" 
+                                    Style="{StaticResource ButtonStyle}" Width="90" Margin="3"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Page>

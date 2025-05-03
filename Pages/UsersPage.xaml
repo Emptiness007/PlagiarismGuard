@@ -30,7 +30,7 @@
                 <DataGridTemplateColumn Header="Действия" Width="100">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Content="Удалить" Click="DeleteButton_Click" Tag="{Binding Id}" Style="{StaticResource ButtonStyle}"/>
+                            <Button Content="Удалить" Click="DeleteButton_Click" Tag="{Binding Id}" Style="{StaticResource ButtonStyle}" Margin="3"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
