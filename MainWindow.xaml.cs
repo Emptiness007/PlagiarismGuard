@@ -28,12 +28,7 @@ namespace PlagiarismGuard
             CurrentUser.Instance.Id = userId;
             LoadUserData();
             ConfigureUIForRole();
-            InitializeNavigation();
-        }
-
-        private void InitializeNavigation()
-        {
-            MainFrame.Navigate(new CheckPage(_context, _textExtractor, _plagiarismChecker));
+            MainFrame.Navigate(new CheckPage(_context, _textExtractor, _plagiarismChecker, _reportGeneratorService));
         }
 
         private void LoadUserData()
@@ -71,7 +66,7 @@ namespace PlagiarismGuard
             UsersText.Tag = null;
 
             CheckPageText.Tag = "Active";
-            MainFrame.Navigate(new CheckPage(_context, _textExtractor, _plagiarismChecker));
+            MainFrame.Navigate(new CheckPage(_context, _textExtractor, _plagiarismChecker, _reportGeneratorService));
             isSidebarOpen = false;
             Sidebar.Visibility = Visibility.Collapsed;
         }

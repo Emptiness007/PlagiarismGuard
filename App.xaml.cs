@@ -7,6 +7,7 @@ using System;
 using System.Linq;
 using System.Windows;
 using Microsoft.Extensions.Configuration;
+using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace PlagiarismGuard
 {
@@ -29,7 +30,6 @@ namespace PlagiarismGuard
             services.AddScoped<TextExtractorService>();
             services.AddScoped<PlagiarismCheckService>();
             services.AddScoped<ReportGeneratorService>();
-
             ServiceProvider = services.BuildServiceProvider();
 
             SeedAdminUser();

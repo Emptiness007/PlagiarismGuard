@@ -21,13 +21,14 @@ namespace PlagiarismGuard.Pages
         private int _currentDocumentId;
         private Check _lastCheck;
 
-        public CheckPage(PlagiarismContext context, TextExtractorService textExtractor, PlagiarismCheckService plagiarismChecker)
+        public CheckPage(PlagiarismContext context, TextExtractorService textExtractor, PlagiarismCheckService plagiarismChecker, ReportGeneratorService reportGenerator)
         {
             InitializeComponent();
             _context = context;
             _textExtractor = textExtractor;
             _plagiarismChecker = plagiarismChecker;
             _currentDocumentId = 0;
+            _reportGenerator = reportGenerator;
         }
 
         public void ImportDocument()

@@ -13,11 +13,7 @@ namespace ScanDocumentsPriemDev.Classes
     public class YandexGPT
     {
         private static string URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion";
-        private static string KEY = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json")
-            .Build()
-            .GetSection("YandexCloud:ApiKey").Value;
+        private static string KEY = "Api-Key AQVN1fjQej3FWnC9ZYeBuiILAu1dkfPk6pIWb4xP";
 
         public static Param SetParams() {
             return new Param()
