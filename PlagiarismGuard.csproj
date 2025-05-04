@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="Aspose.Words" Version="25.4.0" />
+    <PackageReference Include="Copyleaks" Version="2.2.0" />
     <PackageReference Include="DocX" Version="4.0.25105.5786" />
     <PackageReference Include="itext7" Version="9.1.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.2" />

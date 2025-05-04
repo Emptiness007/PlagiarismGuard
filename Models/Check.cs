@@ -22,9 +22,10 @@ namespace PlagiarismGuard.Models
         public int UserId { get; set; }
 
         public float Similarity { get; set; }
+        [Column("ai_generated_percentage")]
+        public float? AiGeneratedPercentage { get; set; }
         [Column("checked_at")]
         public DateTime CheckedAt { get; set; }
-        public bool IsInternetMatch { get; set; }
 
         public Document Document { get; set; }
         public User User { get; set; }

@@ -3,16 +3,19 @@ using PlagiarismGuard.Models;
 using ScanDocumentsPriemDev.Classes;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace PlagiarismGuard.Services
 {
     public class PlagiarismCheckService
     {
         private readonly PlagiarismContext _context;
+        private readonly CopyleaksApiService _copyleaksService = new CopyleaksApiService();
 
         public PlagiarismCheckService(PlagiarismContext context)
         {
@@ -27,6 +30,7 @@ namespace PlagiarismGuard.Services
             string textHash = ComputeTextHash(textContent);
             return _context.DocumentTexts.Any(dt => dt.TextHash == textHash);
         }
+
         public string ComputeTextHash(string text)
         {
             using (SHA256 sha256 = SHA256.Create())
@@ -37,32 +41,24 @@ namespace PlagiarismGuard.Services
             }
         }
 
-        public Check PerformCheck(int documentId, int userId)
-        {
-            var documentText = _context.DocumentTexts
-                .FirstOrDefault(dt => dt.DocumentId == documentId)?.TextContent;
-            if (string.IsNullOrEmpty(documentText))
-                throw new Exception("Текст документа не найден");
-
-            return PerformCheckText(documentText, documentId, userId);
-        }
-
-        public Check PerformCheckText(string inputText, int documentId, int userId)
+        public async Task<Check> PerformCheckTextAsync(string inputText, int documentId, int userId)
         {
             if (string.IsNullOrEmpty(inputText))
                 throw new Exception("Текст для проверки не указан");
 
+            // Разбиваем входной текст на предложения
             var sentences = Regex.Split(inputText, @"(?<=[.!?])\s+")
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .ToList();
             var adminDocs = _context.DocumentTexts
                 .Where(dt => dt.DocumentId != documentId &&
-                             _context.Documents.Any(d => d.Id == dt.DocumentId &&
-                                                        _context.Users.Any(u => u.Id == d.UserId && u.Role == "admin")))
+                            _context.Documents.Any(d => d.Id == dt.DocumentId &&
+                                                    _context.Users.Any(u => u.Id == d.UserId && u.Role == "admin")))
                 .ToList();
 
+            // Группировка совпадений по документам
             var results = new List<CheckResult>();
-            var matchedTexts = new HashSet<string>();
+            var matchedByDocument = new Dictionary<int, (List<string> MatchedFragments, List<double> Similarities)>();
 
             foreach (var sentence in sentences)
             {
@@ -71,20 +67,54 @@ namespace PlagiarismGuard.Services
                     if (string.IsNullOrEmpty(adminDoc.TextContent))
                         continue;
 
-                    var (similarity, fullMatchedText) = CalculateSimilarity(sentence, adminDoc.TextContent);
+                    var (similarity, matchedText) = CalculateSimilarity(sentence, adminDoc.TextContent);
 
-                    if (similarity > 0.8 && !matchedTexts.Contains(fullMatchedText))
+                    if (similarity > 0.8 && matchedText != "Нет совпадений")
                     {
-                        matchedTexts.Add(fullMatchedText);
-                        results.Add(new CheckResult
+                        if (!matchedByDocument.ContainsKey(adminDoc.DocumentId))
                         {
-                            SourceDocumentId = adminDoc.DocumentId,
-                            MatchedText = fullMatchedText, 
-                            Similarity = (float)similarity,
-                            SourceUrl = null
-                        });
+                            matchedByDocument[adminDoc.DocumentId] = (new List<string>(), new List<double>());
+                        }
+
+                        // Добавляем совпадающее предложение и его сходство
+                        matchedByDocument[adminDoc.DocumentId].MatchedFragments.Add(matchedText);
+                        matchedByDocument[adminDoc.DocumentId].Similarities.Add(similarity);
                     }
                 }
+            }
+
+            // Создаем CheckResult для каждого документа
+            foreach (var docId in matchedByDocument.Keys)
+            {
+                var (matchedFragments, similarities) = matchedByDocument[docId];
+                if (matchedFragments.Any())
+                {
+                    // Объединяем все совпадающие предложения в одну строку
+                    string combinedMatchedText = string.Join("; ", matchedFragments);
+                    // Вычисляем среднее сходство для документа
+                    double averageSimilarity = similarities.Average();
+
+                    results.Add(new CheckResult
+                    {
+                        SourceDocumentId = docId,
+                        MatchedText = combinedMatchedText,
+                        Similarity = (float)averageSimilarity
+                    });
+                }
+            }
+
+            float? aiGeneratedPercentage = null;
+            try
+            {
+                string accessToken = await _copyleaksService.LoginAsync();
+                string scanId = Guid.NewGuid().ToString().Replace("-", ""); // Удаляем дефисы для соответствия требованиям
+                await _copyleaksService.SubmitAiDetectionScanAsync(accessToken, inputText, scanId);
+                var aiResult = await _copyleaksService.GetAiDetectionResultAsync(accessToken, scanId);
+                aiGeneratedPercentage = aiResult.Probability * 100;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"AI Detection error: {ex.Message}");
             }
 
             int totalInputLength = inputText.Length;
@@ -97,8 +127,8 @@ namespace PlagiarismGuard.Services
                 DocumentId = documentId,
                 UserId = userId,
                 Similarity = plagiarismPercentage,
-                CheckedAt = DateTime.Now,
-                IsInternetMatch = false
+                AiGeneratedPercentage = aiGeneratedPercentage,
+                CheckedAt = DateTime.Now
             };
 
             _context.Checks.Add(check);
@@ -119,46 +149,28 @@ namespace PlagiarismGuard.Services
             if (string.IsNullOrEmpty(text1) || string.IsNullOrEmpty(text2))
                 return (0, "Нет совпадений");
 
-            var sentences1 = Regex.Split(text1, @"(?<=[.!?])\s+").Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
             var sentences2 = Regex.Split(text2, @"(?<=[.!?])\s+").Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
 
-            if (!sentences1.Any() || !sentences2.Any())
+            if (!sentences2.Any())
                 return (0, "Нет совпадений");
 
-            var matchedFragments = new List<string>();
-            double totalSimilarity = 0;
-            int validComparisons = 0;
+            double bestSimilarity = 0;
+            string bestMatch = null;
 
-            foreach (var sentence1 in sentences1)
+            foreach (var sentence2 in sentences2)
             {
-                double bestSimilarity = 0;
-                string bestMatch = null;
+                int distance = LevenshteinDistance(text1, sentence2);
+                int maxLength = Math.Max(text1.Length, sentence2.Length);
+                double similarity = maxLength == 0 ? 0 : 1.0 - (double)distance / maxLength;
 
-                foreach (var sentence2 in sentences2)
+                if (similarity > bestSimilarity)
                 {
-                    int distance = LevenshteinDistance(sentence1, sentence2);
-                    int maxLength = Math.Max(sentence1.Length, sentence2.Length);
-                    double similarity = maxLength == 0 ? 0 : 1.0 - (double)distance / maxLength;
-
-                    if (similarity > bestSimilarity)
-                    {
-                        bestSimilarity = similarity;
-                        bestMatch = sentence1;
-                    }
-                }
-
-                if (bestSimilarity > 0.8)
-                {
-                    matchedFragments.Add(bestMatch);
-                    totalSimilarity += bestSimilarity;
-                    validComparisons++;
+                    bestSimilarity = similarity;
+                    bestMatch = text1; // Сохраняем исходное предложение из проверяемого текста
                 }
             }
 
-            double averageSimilarity = validComparisons > 0 ? totalSimilarity / validComparisons : 0;
-            string matchedText = matchedFragments.Any() ? string.Join("; ", matchedFragments) : "Нет совпадений";
-
-            return (averageSimilarity, matchedText);
+            return bestSimilarity > 0.8 ? (bestSimilarity, bestMatch) : (0, "Нет совпадений");
         }
 
         private int LevenshteinDistance(string s, string t)

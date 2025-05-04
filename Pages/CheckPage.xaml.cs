@@ -96,7 +96,7 @@ namespace PlagiarismGuard.Pages
             }
         }
 
-        private void CheckText()
+        private async Task CheckTextAsync()
         {
             try
             {
@@ -118,7 +118,7 @@ namespace PlagiarismGuard.Pages
                     return;
                 }
 
-                _lastCheck = _plagiarismChecker.PerformCheckText(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
+                _lastCheck = await _plagiarismChecker.PerformCheckTextAsync(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
                 var results = _context.CheckResults
                     .Where(cr => cr.CheckId == _lastCheck.Id)
                     .ToList();
@@ -135,12 +135,21 @@ namespace PlagiarismGuard.Pages
                     });
                     ProgressBar.Value = plagiarismPercentage;
                     TextBlock.Text = $"Процент плагиата - {plagiarismPercentage:F2}%";
+
+                    if (_lastCheck.AiGeneratedPercentage.HasValue)
+                    {
+                        TextBlock.Text += $"\nВероятность ИИ-генерации: {_lastCheck.AiGeneratedPercentage:F2}%";
+                    }
                 }
                 else
                 {
                     SourceDataGrid.ItemsSource = null;
                     ProgressBar.Value = 0;
                     TextBlock.Text = "Совпадений не найдено";
+                    if (_lastCheck.AiGeneratedPercentage.HasValue)
+                    {
+                        TextBlock.Text += $"\nВероятность ИИ-генерации: {_lastCheck.AiGeneratedPercentage:F2}%";
+                    }
                 }
             }
             catch (Exception ex)
@@ -149,9 +158,9 @@ namespace PlagiarismGuard.Pages
             }
         }
 
-        private void CheckButton_Click(object sender, RoutedEventArgs e)
+        private async void CheckButton_Click(object sender, RoutedEventArgs e)
         {
-            CheckText();
+            await CheckTextAsync();
         }
 
 
