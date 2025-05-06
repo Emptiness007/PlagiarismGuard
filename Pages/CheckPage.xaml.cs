@@ -106,6 +106,7 @@ namespace PlagiarismGuard.Pages
                     MessageBox.Show("Текст для проверки пуст!");
                     return;
                 }
+                CheckButton.IsEnabled = false;
 
                 var adminDocuments = _context.DocumentTexts
                     .Where(dt => _context.Documents.Any(d => d.Id == dt.DocumentId &&
@@ -155,6 +156,10 @@ namespace PlagiarismGuard.Pages
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка при проверке: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                CheckButton.IsEnabled = true;
             }
         }
 

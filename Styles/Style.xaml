@@ -293,4 +293,28 @@
             </Trigger>
         </Style.Triggers>
     </Style>
+    <Style x:Key="CircularProgressBar" TargetType="{x:Type Border}">
+        <Setter Property="Width" Value="20"/>
+        <Setter Property="Height" Value="20"/>
+        <Setter Property="Visibility" Value="Collapsed"/>
+        <Setter Property="BorderBrush" Value="Blue"/>
+        <Setter Property="BorderThickness" Value="3"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Style.Triggers>
+            <!-- Анимация вращения -->
+            <DataTrigger Binding="{Binding IsEnabled, ElementName=CheckButton}" Value="False">
+                <Setter Property="Visibility" Value="Visible"/>
+                <DataTrigger.EnterActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation
+                                    Storyboard.TargetProperty="(Border.RenderTransform).(RotateTransform.Angle)"
+                                    From="0" To="360" Duration="0:0:1"
+                                    RepeatBehavior="Forever"/>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.EnterActions>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
 </ResourceDictionary>

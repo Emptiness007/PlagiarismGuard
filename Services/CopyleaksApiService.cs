@@ -11,17 +11,17 @@ namespace PlagiarismGuard.Services
 {
     public class CopyleaksApiService
     {
-        private readonly string _apiKey = "1f638e28-c08e-4703-be9b-d575964cc32b"; // Ваш API ключ
-        private readonly string _email = "alenafilimonova98@gmail.com"; // Ваш email
+        private readonly string _apiKey = "1f638e28-c08e-4703-be9b-d575964cc32b"; 
+        private readonly string _email = "alenafilimonova98@gmail.com"; 
         private readonly HttpClient _httpClient;
-        private const string IdentityBaseUrl = "https://id.copyleaks.com/v3"; // Для авторизации
-        private const string ApiBaseUrl = "https://api.copyleaks.com/v2"; // Для writer-detector
+        private const string IdentityBaseUrl = "https://id.copyleaks.com/v3"; 
+        private const string ApiBaseUrl = "https://api.copyleaks.com/v2"; 
 
         public CopyleaksApiService()
         {
             _httpClient = new HttpClient();
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "PlagiarismGuard/1.0");
-            _httpClient.Timeout = TimeSpan.FromSeconds(30); // Установите тайм-аут
+            _httpClient.Timeout = TimeSpan.FromSeconds(30); 
         }
 
         public async Task<string> LoginAsync()
@@ -44,16 +44,15 @@ namespace PlagiarismGuard.Services
 
         public async Task<string> SubmitAiDetectionScanAsync(string accessToken, string text, string scanId)
         {
-            // Проверка scanId на соответствие требованиям (3-36 символов, допустимые символы)
             if (string.IsNullOrEmpty(scanId) || scanId.Length < 3 || scanId.Length > 36 || !Regex.IsMatch(scanId, @"^[a-z0-9!@$^&-+%=_(){}<>';:/."",~`|]+$"))
                 throw new ArgumentException("Invalid scanId. Must be 3-36 characters and contain only allowed characters.");
 
             var submission = new
             {
                 text = text,
-                sandbox = false, // Установите true для тестового режима
-                explain = true,   // Включаем объяснение результата
-                sensitivity = 2  // Средний уровень чувствительности
+                sandbox = false, 
+                explain = true,   
+                sensitivity = 2  
             };
             var content = new StringContent(JsonConvert.SerializeObject(submission), Encoding.UTF8, "application/json");
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -110,8 +109,8 @@ namespace PlagiarismGuard.Services
     public class AiDetectionResult
     {
         [JsonProperty("ai")]
-        public float Probability { get; set; } // Процент вероятности AI-генерации
+        public float Probability { get; set; } 
         [JsonProperty("explain")]
-        public string Explanation { get; set; } // Объяснение результата (если explain = true)
+        public string Explanation { get; set; } 
     }
 }
