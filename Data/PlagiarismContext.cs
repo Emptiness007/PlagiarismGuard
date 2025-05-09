@@ -13,6 +13,7 @@ namespace PlagiarismGuard.Data
         public DbSet<DocumentText> DocumentTexts { get; set; }
         public DbSet<Check> Checks { get; set; }
         public DbSet<CheckResult> CheckResults { get; set; }
+        public DbSet<LinkCheckResult> LinkCheckResults { get; set; }
 
         public PlagiarismContext() : this(GetConnectionString())
         {

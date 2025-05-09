@@ -13,6 +13,7 @@ namespace PlagiarismGuard.Pages
 {
     public partial class DocumentsPage : Page
     {
+        public bool IsAdmin => CurrentUser.Instance.Role == "admin";
         private readonly PlagiarismContext _context;
         private readonly TextExtractorService _textExtractor;
         private readonly PlagiarismCheckService _plagiarismChecker;
@@ -23,6 +24,7 @@ namespace PlagiarismGuard.Pages
             _context = context;
             _textExtractor = textExtractor;
             _plagiarismChecker = plagiarismChecker;
+            PlagiarismCheckColumn.Visibility = IsAdmin ? Visibility.Visible : Visibility.Collapsed;
 
             LoadDocuments();
         }
@@ -104,6 +106,37 @@ namespace PlagiarismGuard.Pages
                 }
             }
         }
+        private void PlagiarismCheck_Checked(object sender, RoutedEventArgs e)
+        {
+            var checkBox = sender as CheckBox;
+            if (checkBox != null)
+            {
+                int documentId = (int)checkBox.Tag;
+                var document = _context.Documents.FirstOrDefault(d => d.Id == documentId);
+                if (document != null && CurrentUser.Instance.Role == "admin")
+                {
+                    document.IsUsedForPlagiarismCheck = true;
+                    _context.SaveChanges();
+                    System.Diagnostics.Debug.WriteLine($"Документ {documentId} помечен для проверки на плагиат");
+                }
+            }
+        }
+
+        private void PlagiarismCheck_Unchecked(object sender, RoutedEventArgs e)
+        {
+            var checkBox = sender as CheckBox;
+            if (checkBox != null)
+            {
+                int documentId = (int)checkBox.Tag;
+                var document = _context.Documents.FirstOrDefault(d => d.Id == documentId);
+                if (document != null && CurrentUser.Instance.Role == "admin")
+                {
+                    document.IsUsedForPlagiarismCheck = false;
+                    _context.SaveChanges();
+                    System.Diagnostics.Debug.WriteLine($"Документ {documentId} исключён из проверки на плагиат");
+                }
+            }
+        }
 
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
@@ -126,26 +159,25 @@ namespace PlagiarismGuard.Pages
                     {
                         _context.DocumentTexts.Remove(documentText);
                     }
-
                     var checks = _context.Checks.Where(c => c.DocumentId == documentId).ToList();
+
                     foreach (var check in checks)
                     {
+                        var linkCheckResults = _context.LinkCheckResults.Where(lcr => lcr.CheckId == check.Id).ToList();
+                        if (linkCheckResults.Any())
+                        {
+                            _context.LinkCheckResults.RemoveRange(linkCheckResults);
+                        }
+
                         var checkResults = _context.CheckResults.Where(cr => cr.CheckId == check.Id).ToList();
-                        _context.CheckResults.RemoveRange(checkResults);
+                        if (checkResults.Any())
+                        {
+                            _context.CheckResults.RemoveRange(checkResults);
+                        }
                         _context.Checks.Remove(check);
                     }
 
-                    if (File.Exists(document.FilePath))
-                    {
-                        try
-                        {
-                            File.Delete(document.FilePath);
-                        }
-                        catch (Exception ex)
-                        {
-                            MessageBox.Show($"Ошибка при удалении файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                        }
-                    }
+                    _context.SaveChanges();
 
                     _context.Documents.Remove(document);
                     _context.SaveChanges();

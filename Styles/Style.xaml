@@ -149,7 +149,6 @@
         <Setter Property="HeadersVisibility" Value="Column"/>
         <Setter Property="GridLinesVisibility" Value="None"/>
         <Setter Property="RowHeaderWidth" Value="0"/>
-
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGrid">
@@ -171,19 +170,13 @@
                                             <RowDefinition Height="*"/>
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
-
-                                        <!-- Шапка DataGrid -->
                                         <DataGridColumnHeadersPresenter x:Name="PART_ColumnHeadersPresenter"
                                                                         Grid.Column="1"
                                                                         Grid.ColumnSpan="2"/>
-
-                                        <!-- Основное содержимое -->
                                         <ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
                                                               Grid.Row="1"
                                                               Grid.ColumnSpan="2"
                                                               CanContentScroll="{TemplateBinding CanContentScroll}"/>
-
-                                        <!-- Скроллбар -->
                                         <ScrollBar x:Name="PART_VerticalScrollBar"
                                                   Grid.Row="1"
                                                   Grid.Column="2"
@@ -201,7 +194,6 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
-
         <Setter Property="ColumnHeaderStyle">
             <Setter.Value>
                 <Style TargetType="DataGridColumnHeader">
@@ -212,10 +204,16 @@
                     <Setter Property="BorderThickness" Value="0 0 0 1"/>
                     <Setter Property="BorderBrush" Value="#E0E0E0"/>
                     <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                    <Setter Property="ContentTemplate">
+                        <Setter.Value>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" TextWrapping="Wrap" TextAlignment="Left"/>
+                            </DataTemplate>
+                        </Setter.Value>
+                    </Setter>
                 </Style>
             </Setter.Value>
         </Setter>
-
         <Setter Property="RowStyle">
             <Setter.Value>
                 <Style TargetType="DataGridRow">
@@ -233,13 +231,13 @@
                 </Style>
             </Setter.Value>
         </Setter>
-
         <Setter Property="CellStyle">
             <Setter.Value>
                 <Style TargetType="DataGridCell">
                     <Setter Property="Padding" Value="12 8"/>
                     <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                     <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="IsEnabled" Value="True"/>
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="DataGridCell">
@@ -291,30 +289,6 @@
                 <Setter Property="Foreground" Value="#6B00B6"/>
                 <Setter Property="FontWeight" Value="Bold"/>
             </Trigger>
-        </Style.Triggers>
-    </Style>
-    <Style x:Key="CircularProgressBar" TargetType="{x:Type Border}">
-        <Setter Property="Width" Value="20"/>
-        <Setter Property="Height" Value="20"/>
-        <Setter Property="Visibility" Value="Collapsed"/>
-        <Setter Property="BorderBrush" Value="Blue"/>
-        <Setter Property="BorderThickness" Value="3"/>
-        <Setter Property="CornerRadius" Value="10"/>
-        <Style.Triggers>
-            <!-- Анимация вращения -->
-            <DataTrigger Binding="{Binding IsEnabled, ElementName=CheckButton}" Value="False">
-                <Setter Property="Visibility" Value="Visible"/>
-                <DataTrigger.EnterActions>
-                    <BeginStoryboard>
-                        <Storyboard>
-                            <DoubleAnimation
-                                    Storyboard.TargetProperty="(Border.RenderTransform).(RotateTransform.Angle)"
-                                    From="0" To="360" Duration="0:0:1"
-                                    RepeatBehavior="Forever"/>
-                        </Storyboard>
-                    </BeginStoryboard>
-                </DataTrigger.EnterActions>
-            </DataTrigger>
         </Style.Triggers>
     </Style>
 </ResourceDictionary>

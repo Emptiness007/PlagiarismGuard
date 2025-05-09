@@ -10,6 +10,7 @@
     <Grid Margin="10">
         <Grid.Resources>
             <ResourceDictionary Source="/Styles/Style.xaml"/>
+            
         </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -22,12 +23,22 @@
 
         <DataGrid x:Name="DocumentsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Style="{StaticResource RoundedDataGridStyle}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Имя файла" Binding="{Binding FileName}" Width="130" />
+                <DataGridTextColumn Header="Имя файла"  Binding="{Binding FileName}" Width="130" />
                 <DataGridTextColumn Header="Пользователь" Binding="{Binding User.Username}" Width="110"/>
                 <DataGridTextColumn Header="Размер (байты)" Binding="{Binding FileSize}" Width="110"/>
-                <DataGridTextColumn Header="Дата загрузки" Binding="{Binding UploadedAt, StringFormat={}{0:dd.MM.yyyy HH:mm}}" Width="150"/>
-                <DataGridTextColumn Header="Формат" Binding="{Binding Format}" Width="80"/>
-                <DataGridTemplateColumn Header="Действия" Width="100">
+                <DataGridTextColumn Header="Дата загрузки" Binding="{Binding UploadedAt, StringFormat={}{0:dd.MM.yyyy HH:mm}}" Width="120"/>
+                <DataGridCheckBoxColumn x:Name="PlagiarismCheckColumn" Header="Использовать для проверки" 
+                        Binding="{Binding IsUsedForPlagiarismCheck, UpdateSourceTrigger=PropertyChanged}" 
+                        Width="160">
+                    <DataGridCheckBoxColumn.ElementStyle>
+                        <Style TargetType="CheckBox">
+                            <Setter Property="Tag" Value="{Binding Id}"/>
+                            <EventSetter Event="Checked" Handler="PlagiarismCheck_Checked"/>
+                            <EventSetter Event="Unchecked" Handler="PlagiarismCheck_Unchecked"/>
+                        </Style>
+                    </DataGridCheckBoxColumn.ElementStyle>
+                </DataGridCheckBoxColumn>
+                <DataGridTemplateColumn Header="Действия" Width="100" IsReadOnly="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Button Content="Удалить" Click="DeleteButton_Click" Tag="{Binding Id}" Style="{StaticResource ButtonStyle}" Width="80" Margin="3"/>

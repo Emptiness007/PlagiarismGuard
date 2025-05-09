@@ -30,28 +30,49 @@ namespace PlagiarismGuard.Services
                 {
                     StringBuilder text = new StringBuilder();
                     bool skipTitlePage = true;
+                    int paragraphCount = 0;
+                    const int maxTitlePageParagraphs = 30;
 
                     foreach (var paragraph in doc.Paragraphs)
                     {
                         if (string.IsNullOrWhiteSpace(paragraph.Text))
                             continue;
 
+                        paragraphCount++;
+
                         if (IsHeading(paragraph))
+                        {
+                            if (paragraph.StyleName != null && paragraph.StyleName.Equals("Heading 1", StringComparison.OrdinalIgnoreCase))
+                            {
+                                skipTitlePage = false;
+                            }
                             continue;
+                        }
 
                         if (IsCaption(paragraph))
                             continue;
 
-                        if (skipTitlePage && IsTitlePageContent(paragraph))
-                            continue;
-
-                        if (paragraph.StyleName != null && paragraph.StyleName.Equals("Heading 1", StringComparison.OrdinalIgnoreCase))
+                        if (skipTitlePage)
                         {
-                            skipTitlePage = false;
-                            continue;
+                            if (IsTitlePageContent(paragraph) || paragraphCount <= maxTitlePageParagraphs)
+                            {
+                                continue;
+                            }
+                            else
+                            {
+                                skipTitlePage = false;
+                            }
                         }
 
-                        text.AppendLine(paragraph.Text);
+                        if (paragraph.IsListItem)
+                        {
+                            string listPrefix = GetListPrefix(paragraph);
+                            text.AppendLine($"{listPrefix} {paragraph.Text}");
+                        }
+                        else
+                        {
+                            text.AppendLine(paragraph.Text);
+                        }
                     }
 
                     return text.ToString().Trim();
@@ -60,6 +81,25 @@ namespace PlagiarismGuard.Services
             catch (Exception ex)
             {
                 throw new Exception($"Ошибка при извлечении текста из .docx: {ex.Message}");
+            }
+        }
+
+        private string GetListPrefix(Paragraph paragraph)
+        {
+            if (!paragraph.IsListItem)
+                return string.Empty;
+
+            int level = (int)paragraph.IndentLevel;
+            string indent = new string(' ', level * 2);
+
+            switch (paragraph.ListItemType)
+            {
+                case ListItemType.Bulleted:
+                    return $"{indent}•";
+                case ListItemType.Numbered:
+                    return $"{indent}";
+                default:
+                    return $"{indent}*";
             }
         }
 
@@ -87,10 +127,18 @@ namespace PlagiarismGuard.Services
         private bool IsHeading(Paragraph paragraph)
         {
             if (paragraph.StyleName != null &&
-                (paragraph.StyleName.StartsWith("Heading", StringComparison.OrdinalIgnoreCase) ||
-                 paragraph.StyleName.Contains("Заголовок", StringComparison.OrdinalIgnoreCase)))
-            {
+            (paragraph.StyleName.StartsWith("Heading", StringComparison.OrdinalIgnoreCase) ||
+             paragraph.StyleName.Contains("Заголовок", StringComparison.OrdinalIgnoreCase)))
+                {
                 return true;
+            }
+            string trimmedText = paragraph.Text.Trim();
+            if (!string.IsNullOrEmpty(trimmedText) && !trimmedText.EndsWith(".") && trimmedText.Length > 2)
+            {
+                if (!paragraph.IsListItem && !IsCaption(paragraph))
+                {
+                    return true;
+                }
             }
 
             return false;
@@ -109,17 +157,13 @@ namespace PlagiarismGuard.Services
             {
                 return true;
             }
-            if (paragraph.Text.Length < 100)
-            {
-                return true;
-            }
 
             return false;
         }
 
         private bool IsTitlePageContent(Paragraph paragraph)
         {
-            string[] titlePageKeywords = { "Содержание", "Курсовая работа", "Дипломная работа", "учреждение", "университет" };
+            string[] titlePageKeywords = {"Содержание", "Курсовая работа", "Дипломная работа", "Дипломный проект", "Курсовой проект", "учреждение", "ЗАДАНИЕ", "Пояснительная записка", "Министерство", "Факультет", "Кафедра", "Выполнил", "Проверил", "Оглавление"};
             return titlePageKeywords.Any(keyword => paragraph.Text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
         }
     }

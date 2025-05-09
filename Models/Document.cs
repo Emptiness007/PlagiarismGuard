@@ -36,6 +36,8 @@ namespace PlagiarismGuard.Models
         [Required]
         [Column(TypeName = "varchar(4)")]
         public string Format { get; set; }
+        [Column("is_used_for_plagiarism_check")]
+        public bool IsUsedForPlagiarismCheck { get; set; } = false;
 
         // Навигационное свойство
         public User User { get; set; }

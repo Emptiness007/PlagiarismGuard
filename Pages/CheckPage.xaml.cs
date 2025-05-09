@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using Xceed.Document.NET;
 using Xceed.Words.NET;
 
@@ -123,6 +124,9 @@ namespace PlagiarismGuard.Pages
                 var results = _context.CheckResults
                     .Where(cr => cr.CheckId == _lastCheck.Id)
                     .ToList();
+                var linkResults = _context.LinkCheckResults
+                .Where(lcr => lcr.CheckId == _lastCheck.Id)
+                .ToList();
 
                 if (results.Any())
                 {
@@ -137,20 +141,25 @@ namespace PlagiarismGuard.Pages
                     ProgressBar.Value = plagiarismPercentage;
                     TextBlock.Text = $"Процент плагиата - {plagiarismPercentage:F2}%";
 
-                    if (_lastCheck.AiGeneratedPercentage.HasValue)
-                    {
-                        TextBlock.Text += $"\nВероятность ИИ-генерации: {_lastCheck.AiGeneratedPercentage:F2}%";
-                    }
                 }
                 else
                 {
                     SourceDataGrid.ItemsSource = null;
                     ProgressBar.Value = 0;
                     TextBlock.Text = "Совпадений не найдено";
-                    if (_lastCheck.AiGeneratedPercentage.HasValue)
+                }
+                if (linkResults.Any())
+                {
+                    LinkDataGrid.ItemsSource = linkResults.Select((lr, index) => new
                     {
-                        TextBlock.Text += $"\nВероятность ИИ-генерации: {_lastCheck.AiGeneratedPercentage:F2}%";
-                    }
+                        LinkNo = index + 1,
+                        Url = lr.Url,
+                        IsMatchFound = lr.IsMatchFound
+                    });
+                }
+                else
+                {
+                    LinkDataGrid.ItemsSource = null;
                 }
             }
             catch (Exception ex)
@@ -184,4 +193,5 @@ namespace PlagiarismGuard.Pages
             _reportGenerator.GeneratePlagiarismReport(_lastCheck, results);
         }
     }
+    
 }

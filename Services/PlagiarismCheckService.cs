@@ -1,10 +1,12 @@
-﻿using PlagiarismGuard.Data;
+﻿using HtmlAgilityPack;
+using PlagiarismGuard.Data;
 using PlagiarismGuard.Models;
 using ScanDocumentsPriemDev.Classes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -15,11 +17,14 @@ namespace PlagiarismGuard.Services
     public class PlagiarismCheckService
     {
         private readonly PlagiarismContext _context;
-        private readonly CopyleaksApiService _copyleaksService = new CopyleaksApiService();
-
+        private readonly HttpClient _httpClient;
         public PlagiarismCheckService(PlagiarismContext context)
         {
             _context = context;
+            _httpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(10)
+            };
         }
 
         public bool DocumentExists(string textContent)
@@ -46,76 +51,58 @@ namespace PlagiarismGuard.Services
             if (string.IsNullOrEmpty(inputText))
                 throw new Exception("Текст для проверки не указан");
 
-            // Разбиваем входной текст на предложения
+            string inputTextHash = ComputeTextHash(inputText);
+
             var sentences = Regex.Split(inputText, @"(?<=[.!?])\s+")
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .ToList();
-            var adminDocs = _context.DocumentTexts
+            var referenceDocs = _context.DocumentTexts
                 .Where(dt => dt.DocumentId != documentId &&
-                            _context.Documents.Any(d => d.Id == dt.DocumentId &&
-                                                    _context.Users.Any(u => u.Id == d.UserId && u.Role == "admin")))
+                            dt.TextHash != inputTextHash &&
+                            _context.Documents.Any(d => d.Id == dt.DocumentId && d.IsUsedForPlagiarismCheck))
                 .ToList();
 
-            // Группировка совпадений по документам
+
             var results = new List<CheckResult>();
+            var linkResults = new List<LinkCheckResult>();
             var matchedByDocument = new Dictionary<int, (List<string> MatchedFragments, List<double> Similarities)>();
 
             foreach (var sentence in sentences)
             {
-                foreach (var adminDoc in adminDocs)
+                foreach (var refDoc in referenceDocs)
                 {
-                    if (string.IsNullOrEmpty(adminDoc.TextContent))
+                    if (string.IsNullOrEmpty(refDoc.TextContent))
                         continue;
 
-                    var (similarity, matchedText) = CalculateSimilarity(sentence, adminDoc.TextContent);
+                    var matches = CalculateSimilarity(sentence, refDoc.TextContent);
 
-                    if (similarity > 0.8 && matchedText != "Нет совпадений")
+                    if (matches.Any())
                     {
-                        if (!matchedByDocument.ContainsKey(adminDoc.DocumentId))
+                        if (!matchedByDocument.ContainsKey(refDoc.DocumentId))
                         {
-                            matchedByDocument[adminDoc.DocumentId] = (new List<string>(), new List<double>());
+                            matchedByDocument[refDoc.DocumentId] = (new List<string>(), new List<double>());
                         }
 
-                        // Добавляем совпадающее предложение и его сходство
-                        matchedByDocument[adminDoc.DocumentId].MatchedFragments.Add(matchedText);
-                        matchedByDocument[adminDoc.DocumentId].Similarities.Add(similarity);
+                        foreach (var (similarity, matchedText) in matches)
+                        {
+                            matchedByDocument[refDoc.DocumentId].MatchedFragments.Add(matchedText);
+                            matchedByDocument[refDoc.DocumentId].Similarities.Add(similarity);
+                        }
                     }
                 }
             }
 
-            // Создаем CheckResult для каждого документа
-            foreach (var docId in matchedByDocument.Keys)
-            {
-                var (matchedFragments, similarities) = matchedByDocument[docId];
-                if (matchedFragments.Any())
+            var links = ExtractLinks(inputText);
+            linkResults.AddRange(await VerifyLinksAsync(links, sentences));
+
+            results.AddRange(matchedByDocument
+                .Where(kvp => kvp.Value.MatchedFragments.Any())
+                .Select(kvp => new CheckResult
                 {
-                    // Объединяем все совпадающие предложения в одну строку
-                    string combinedMatchedText = string.Join("; ", matchedFragments);
-                    // Вычисляем среднее сходство для документа
-                    double averageSimilarity = similarities.Average();
-
-                    results.Add(new CheckResult
-                    {
-                        SourceDocumentId = docId,
-                        MatchedText = combinedMatchedText,
-                        Similarity = (float)averageSimilarity
-                    });
-                }
-            }
-
-            float? aiGeneratedPercentage = null;
-            try
-            {
-                string accessToken = await _copyleaksService.LoginAsync();
-                string scanId = Guid.NewGuid().ToString().Replace("-", ""); // Удаляем дефисы для соответствия требованиям
-                await _copyleaksService.SubmitAiDetectionScanAsync(accessToken, inputText, scanId);
-                var aiResult = await _copyleaksService.GetAiDetectionResultAsync(accessToken, scanId);
-                aiGeneratedPercentage = aiResult.Probability * 100;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"AI Detection error: {ex.Message}");
-            }
+                    SourceDocumentId = kvp.Key,
+                    MatchedText = string.Join("; ", kvp.Value.MatchedFragments),
+                    Similarity = (float)kvp.Value.Similarities.Average()
+                }));
 
             int totalInputLength = inputText.Length;
             int totalMatchedLength = results.Sum(r => r.MatchedText.Length);
@@ -127,7 +114,6 @@ namespace PlagiarismGuard.Services
                 DocumentId = documentId,
                 UserId = userId,
                 Similarity = plagiarismPercentage,
-                AiGeneratedPercentage = aiGeneratedPercentage,
                 CheckedAt = DateTime.Now
             };
 
@@ -139,23 +125,139 @@ namespace PlagiarismGuard.Services
                 result.CheckId = check.Id;
                 _context.CheckResults.Add(result);
             }
+
+            foreach (var linkResult in linkResults)
+            {
+                linkResult.CheckId = check.Id;
+                _context.LinkCheckResults.Add(linkResult);
+            }
+
             _context.SaveChanges();
 
             return check;
         }
 
-        private (double Similarity, string MatchedText) CalculateSimilarity(string text1, string text2)
+        private List<string> ExtractLinks(string text)
         {
+            var urlRegex = new Regex(@"(https?://[^\s""<>\[\]\{\}]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            return urlRegex.Matches(text)
+                .Cast<Match>()
+                .Select(m => m.Value)
+                .Distinct()
+                .ToList();
+        }
+
+        private async Task<List<LinkCheckResult>> VerifyLinksAsync(List<string> links, List<string> sentences)
+        {
+            var linkResults = new List<LinkCheckResult>();
+
+            Debug.WriteLine($"Начало проверки ссылок. Всего ссылок: {links.Count}");
+
+            foreach (var link in links)
+            {
+                Debug.WriteLine($"Проверка ссылки: {link}");
+                bool isMatchFound = false;
+                try
+                {
+                    string webContent = await FetchWebContentAsync(link);
+                    if (!string.IsNullOrEmpty(webContent))
+                    {
+                        Debug.WriteLine($"Контент успешно извлечен для {link}. Длина контента: {webContent.Length} символов");
+                        foreach (var sentence in sentences)
+                        {
+                            var matches = CalculateSimilarity(sentence, webContent);
+                            if (matches.Any())
+                            {
+                                Debug.WriteLine($"Совпадения найдены для ссылки {link}. Предложение: '{sentence}', Совпадений: {matches.Count}");
+                                foreach (var (similarity, matchedText) in matches)
+                                {
+                                    Debug.WriteLine($"Сходство: {similarity:F2}, Совпавший текст: '{matchedText}'");
+                                }
+                                isMatchFound = true;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"Контент не извлечен для {link}.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Ошибка при проверке ссылки {link}: {ex.Message}");
+                }
+
+                Debug.WriteLine($"Результат проверки ссылки {link}: {(isMatchFound ? "Совпадение найдено" : "Совпадений нет")}");
+
+                linkResults.Add(new LinkCheckResult
+                {
+                    Url = link,
+                    IsMatchFound = isMatchFound
+                });
+            }
+
+            Debug.WriteLine($"Проверка ссылок завершена. Обработано ссылок: {linkResults.Count}");
+            return linkResults;
+        }
+
+        private async Task<string> FetchWebContentAsync(string url)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                string html = await response.Content.ReadAsStringAsync();
+
+                var htmlDoc = new HtmlDocument();
+                htmlDoc.LoadHtml(html);
+
+                var rootNode = htmlDoc.DocumentNode.SelectSingleNode("//body") ?? htmlDoc.DocumentNode;
+
+                var nodesToRemove = rootNode.SelectNodes("//script | //style | //nav | //footer | //header | //iframe | //noscript | //aside | //div[contains(@class, 'advert')]");
+                if (nodesToRemove != null)
+                {
+                    foreach (var node in nodesToRemove)
+                    {
+                        node.Remove();
+                    }
+                }
+
+                var textBuilder = new StringBuilder();
+                var textNodes = rootNode.DescendantsAndSelf()
+                    .Where(n => n.NodeType == HtmlNodeType.Text && !string.IsNullOrWhiteSpace(n.InnerText))
+                    .Select(n => n.InnerText.Trim());
+
+                foreach (var text in textNodes)
+                {
+                    if (!string.IsNullOrEmpty(text) && text.Length > 2 && !Regex.IsMatch(text, @"^\s*[\{\}\[\]\(\);]+$"))
+                    {
+                        textBuilder.AppendLine(text);
+                    }
+                }
+
+                string result = textBuilder.ToString();
+                Debug.WriteLine($"Извлеченный контент ({url}): {result}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ошибка при извлечении контента из {url}: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        private List<(double Similarity, string MatchedText)> CalculateSimilarity(string text1, string text2)
+        {
+            var matches = new List<(double Similarity, string MatchedText)>();
+
             if (string.IsNullOrEmpty(text1) || string.IsNullOrEmpty(text2))
-                return (0, "Нет совпадений");
+                return matches;
 
             var sentences2 = Regex.Split(text2, @"(?<=[.!?])\s+").Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
 
             if (!sentences2.Any())
-                return (0, "Нет совпадений");
-
-            double bestSimilarity = 0;
-            string bestMatch = null;
+                return matches;
 
             foreach (var sentence2 in sentences2)
             {
@@ -163,14 +265,13 @@ namespace PlagiarismGuard.Services
                 int maxLength = Math.Max(text1.Length, sentence2.Length);
                 double similarity = maxLength == 0 ? 0 : 1.0 - (double)distance / maxLength;
 
-                if (similarity > bestSimilarity)
+                if (similarity > 0.8)
                 {
-                    bestSimilarity = similarity;
-                    bestMatch = text1; // Сохраняем исходное предложение из проверяемого текста
+                    matches.Add((similarity, text1));
                 }
             }
 
-            return bestSimilarity > 0.8 ? (bestSimilarity, bestMatch) : (0, "Нет совпадений");
+            return matches;
         }
 
         private int LevenshteinDistance(string s, string t)
