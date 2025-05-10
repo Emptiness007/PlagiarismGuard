@@ -3,11 +3,13 @@ using PlagiarismGuard.Data;
 using PlagiarismGuard.Models;
 using PlagiarismGuard.Services;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using Xceed.Document.NET;
 using Xceed.Words.NET;
 
@@ -21,6 +23,11 @@ namespace PlagiarismGuard.Pages
         private readonly ReportGeneratorService _reportGenerator;
         private int _currentDocumentId;
         private Check _lastCheck;
+        private bool _isResizing; 
+        private bool _isDragging; 
+        private Point _startPoint; 
+        private double _initialHeight; 
+        private Thickness _initialMargin;
 
         public CheckPage(PlagiarismContext context, TextExtractorService textExtractor, PlagiarismCheckService plagiarismChecker, ReportGeneratorService reportGenerator)
         {
@@ -30,6 +37,92 @@ namespace PlagiarismGuard.Pages
             _plagiarismChecker = plagiarismChecker;
             _currentDocumentId = 0;
             _reportGenerator = reportGenerator;
+
+            ResizeHandle.MouseLeftButtonDown += ResizeHandle_MouseLeftButtonDown;
+            ResizeHandle.MouseMove += ResizeHandle_MouseMove;
+            ResizeHandle.MouseLeftButtonUp += ResizeHandle_MouseLeftButtonUp;
+
+            DragHandle.MouseLeftButtonDown += DragHandle_MouseLeftButtonDown;
+            DragHandle.MouseMove += DragHandle_MouseMove;
+            DragHandle.MouseLeftButtonUp += DragHandle_MouseLeftButtonUp;
+        }
+
+        private void ResizeHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _isResizing = true;
+            _startPoint = e.GetPosition(this);
+            _initialHeight = DocumentTextBox.ActualHeight;
+            ResizeHandle.CaptureMouse();
+        }
+
+        private void ResizeHandle_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isResizing)
+            {
+                Point currentPoint = e.GetPosition(this);
+                double deltaY = currentPoint.Y - _startPoint.Y;
+                double newHeight = _initialHeight + deltaY;
+
+                if (newHeight >= DocumentTextBox.MinHeight && newHeight <= DocumentTextBox.MaxHeight)
+                {
+                    DocumentTextBox.Height = newHeight;
+                }
+            }
+        }
+
+        private void ResizeHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            _isResizing = false;
+            ResizeHandle.ReleaseMouseCapture();
+        }
+
+        private void DragHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _isDragging = true;
+            _startPoint = e.GetPosition(this);
+            _initialMargin = ResultsGrid.Margin;
+            DragHandle.CaptureMouse();
+        }
+
+        private void DragHandle_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isDragging)
+            {
+                Point currentPoint = e.GetPosition(this);
+                double deltaY = currentPoint.Y - _startPoint.Y;
+
+                Thickness newMargin = new Thickness
+                {
+                    Left = _initialMargin.Left,
+                    Top = Math.Max(0, _initialMargin.Top + deltaY),
+                    Right = _initialMargin.Right,
+                    Bottom = _initialMargin.Bottom
+                };
+
+                double gridHeight = ResultsGrid.ActualHeight > 0 ? ResultsGrid.ActualHeight : 100;
+                double maxTop = ActualHeight - gridHeight;
+                if (newMargin.Top <= maxTop)
+                {
+                    ResultsGrid.Margin = newMargin;
+                }
+                else
+                {
+                    ResultsGrid.Margin = new Thickness
+                    {
+                        Left = newMargin.Left,
+                        Top = maxTop,
+                        Right = newMargin.Right,
+                        Bottom = newMargin.Bottom
+                    };
+                }
+
+            }
+        }
+
+        private void DragHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            _isDragging = false;
+            DragHandle.ReleaseMouseCapture();
         }
 
         public void ImportDocument()
@@ -154,12 +247,14 @@ namespace PlagiarismGuard.Pages
                     {
                         LinkNo = index + 1,
                         Url = lr.Url,
-                        IsMatchFound = lr.IsMatchFound
+                        Status = lr.Status
                     });
+                    LinkDataGrid.Visibility = Visibility.Visible;
                 }
                 else
                 {
                     LinkDataGrid.ItemsSource = null;
+                    LinkDataGrid.Visibility = Visibility.Collapsed;
                 }
             }
             catch (Exception ex)

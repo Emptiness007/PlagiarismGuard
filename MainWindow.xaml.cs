@@ -28,7 +28,6 @@ namespace PlagiarismGuard
             CurrentUser.Instance.Id = userId;
             LoadUserData();
             ConfigureUIForRole();
-            MainFrame.Navigate(new CheckPage(_context, _textExtractor, _plagiarismChecker, _reportGeneratorService));
         }
 
         private void LoadUserData()
@@ -46,6 +45,8 @@ namespace PlagiarismGuard
             if (CurrentUser.Instance.Role == "admin")
             {
                 UsersText.Visibility = Visibility.Visible;
+                ImportButton.Visibility = Visibility.Collapsed;
+                CheckPageText.Visibility = Visibility.Collapsed;
             }
             else
             {

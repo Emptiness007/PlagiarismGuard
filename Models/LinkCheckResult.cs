@@ -16,6 +16,7 @@ namespace PlagiarismGuard.Models
         public string Url { get; set; }
         [Column("is_match_found")]
         public bool IsMatchFound { get; set; }
+        public string Status { get; set; }
         public Check Check { get; set; }
     }
 }

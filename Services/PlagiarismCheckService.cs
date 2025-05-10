@@ -1,7 +1,6 @@
 ﻿using HtmlAgilityPack;
 using PlagiarismGuard.Data;
 using PlagiarismGuard.Models;
-using ScanDocumentsPriemDev.Classes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -18,6 +17,7 @@ namespace PlagiarismGuard.Services
     {
         private readonly PlagiarismContext _context;
         private readonly HttpClient _httpClient;
+        private const int MaxTextLength = 10000;
         public PlagiarismCheckService(PlagiarismContext context)
         {
             _context = context;
@@ -61,7 +61,6 @@ namespace PlagiarismGuard.Services
                             dt.TextHash != inputTextHash &&
                             _context.Documents.Any(d => d.Id == dt.DocumentId && d.IsUsedForPlagiarismCheck))
                 .ToList();
-
 
             var results = new List<CheckResult>();
             var linkResults = new List<LinkCheckResult>();
@@ -153,52 +152,80 @@ namespace PlagiarismGuard.Services
 
             Debug.WriteLine($"Начало проверки ссылок. Всего ссылок: {links.Count}");
 
-            foreach (var link in links)
+            var tasks = links.Select(link => VerifySingleLinkAsync(link, sentences)).ToList();
+            var results = await Task.WhenAll(tasks);
+            linkResults.AddRange(results.Where(r => r != null));
+
+            Debug.WriteLine($"Проверка ссылок завершена. Обработано ссылок: {linkResults.Count}");
+            return linkResults;
+        }
+
+        private async Task<LinkCheckResult> VerifySingleLinkAsync(string link, List<string> sentences)
+        {
+            Debug.WriteLine($"Проверка ссылки: {link}");
+            try
             {
-                Debug.WriteLine($"Проверка ссылки: {link}");
-                bool isMatchFound = false;
-                try
+                string webContent = await FetchWebContentAsync(link);
+                if (string.IsNullOrEmpty(webContent) || webContent.Length < 50)
                 {
-                    string webContent = await FetchWebContentAsync(link);
-                    if (!string.IsNullOrEmpty(webContent))
+                    Debug.WriteLine($"Контент не извлечен или слишком короткий для {link}.");
+                    return new LinkCheckResult
                     {
-                        Debug.WriteLine($"Контент успешно извлечен для {link}. Длина контента: {webContent.Length} символов");
-                        foreach (var sentence in sentences)
-                        {
-                            var matches = CalculateSimilarity(sentence, webContent);
-                            if (matches.Any())
-                            {
-                                Debug.WriteLine($"Совпадения найдены для ссылки {link}. Предложение: '{sentence}', Совпадений: {matches.Count}");
-                                foreach (var (similarity, matchedText) in matches)
-                                {
-                                    Debug.WriteLine($"Сходство: {similarity:F2}, Совпавший текст: '{matchedText}'");
-                                }
-                                isMatchFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Debug.WriteLine($"Контент не извлечен для {link}.");
-                    }
+                        Url = link,
+                        IsMatchFound = false,
+                        Status = "Контент отсутствует"
+                    };
                 }
-                catch (Exception ex)
+
+                // Проверка языка контента
+                if (IsEnglishContent(webContent))
                 {
-                    Debug.WriteLine($"Ошибка при проверке ссылки {link}: {ex.Message}");
+                    Debug.WriteLine($"Контент на английском для {link}. Пропускаем проверку.");
+                    return new LinkCheckResult
+                    {
+                        Url = link,
+                        IsMatchFound = false,
+                        Status = "Контент на английском"
+                    };
+                }
+
+                Debug.WriteLine($"Контент успешно извлечен для {link}. Длина контента: {webContent.Length} символов");
+                bool isMatchFound = false;
+
+                foreach (var sentence in sentences)
+                {
+                    var matches = CalculateSimilarity(sentence, webContent);
+                    if (matches.Any())
+                    {
+                        Debug.WriteLine($"Совпадения найдены для ссылки {link}. Предложение: '{sentence}', Совпадений: {matches.Count}");
+                        foreach (var (similarity, matchedText) in matches)
+                        {
+                            Debug.WriteLine($"Сходство: {similarity:F2}, Совпавший текст: '{matchedText}'");
+                        }
+                        isMatchFound = true;
+                        break;
+                    }
                 }
 
                 Debug.WriteLine($"Результат проверки ссылки {link}: {(isMatchFound ? "Совпадение найдено" : "Совпадений нет")}");
 
-                linkResults.Add(new LinkCheckResult
+                return new LinkCheckResult
                 {
                     Url = link,
-                    IsMatchFound = isMatchFound
-                });
+                    IsMatchFound = isMatchFound,
+                    Status = isMatchFound ? "Совпадение найдено" : "Совпадений нет"
+                };
             }
-
-            Debug.WriteLine($"Проверка ссылок завершена. Обработано ссылок: {linkResults.Count}");
-            return linkResults;
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ошибка при проверке ссылки {link}: {ex.Message}");
+                return new LinkCheckResult
+                {
+                    Url = link,
+                    IsMatchFound = false,
+                    Status = "Ошибка при проверке"
+                };
+            }
         }
 
         private async Task<string> FetchWebContentAsync(string url)
@@ -214,7 +241,7 @@ namespace PlagiarismGuard.Services
 
                 var rootNode = htmlDoc.DocumentNode.SelectSingleNode("//body") ?? htmlDoc.DocumentNode;
 
-                var nodesToRemove = rootNode.SelectNodes("//script | //style | //nav | //footer | //header | //iframe | //noscript | //aside | //div[contains(@class, 'advert')]");
+                var nodesToRemove = rootNode.SelectNodes("//script | //style | //nav | //footer | //header | //iframe | //noscript | //aside");
                 if (nodesToRemove != null)
                 {
                     foreach (var node in nodesToRemove)
@@ -237,6 +264,11 @@ namespace PlagiarismGuard.Services
                 }
 
                 string result = textBuilder.ToString();
+                if (result.Length > MaxTextLength)
+                    result = result.Substring(0, MaxTextLength);
+
+                result = Regex.Replace(result, @"\s+", " ").Trim();
+
                 Debug.WriteLine($"Извлеченный контент ({url}): {result}");
                 return result;
             }
@@ -245,6 +277,20 @@ namespace PlagiarismGuard.Services
                 Debug.WriteLine($"Ошибка при извлечении контента из {url}: {ex.Message}");
                 return string.Empty;
             }
+        }
+
+        private bool IsEnglishContent(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return false;
+
+            int latinCharCount = text.Count(c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
+            double latinRatio = (double)latinCharCount / text.Length;
+
+            string[] commonEnglishWords = { "the", "and", "is", "in", "to", "of", "a", "for", "on", "with" };
+            bool hasEnglishWords = commonEnglishWords.Any(word => Regex.IsMatch(text, $@"\b{word}\b", RegexOptions.IgnoreCase));
+
+            return latinRatio > 0.7 && hasEnglishWords;
         }
 
         private List<(double Similarity, string MatchedText)> CalculateSimilarity(string text1, string text2)
