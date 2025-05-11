@@ -1,0 +1,27 @@
+﻿<Window x:Class="PlagiarismGuard.Windows.ProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PlagiarismGuard.Windows"
+        mc:Ignorable="d"
+        Title="Проверка" Height="150" Width="300"
+        WindowStyle="None" ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False" BorderThickness="1" BorderBrush="#636AE8">
+    <Window.Resources>
+        <ResourceDictionary Source="/Styles/Style.xaml"/>
+    </Window.Resources>
+    <Grid Background="#F5F6F5">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="Проверка документа..." FontFamily="/Fonts/#Anonymous Pro" FontSize="16" 
+                   Margin="10" HorizontalAlignment="Center"/>
+        <ProgressBar Grid.Row="1" IsIndeterminate="True" Height="10" Margin="10,0,10,20">
+            <ProgressBar.Foreground>
+                <SolidColorBrush Color="#636AE8"/>
+            </ProgressBar.Foreground>
+        </ProgressBar>
+    </Grid>
+</Window>

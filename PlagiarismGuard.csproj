@@ -11,7 +11,11 @@
 
   <ItemGroup>
     <None Remove="Fonts\AnonymousPro-Regular.ttf" />
+    <None Remove="Image\Error.png" />
     <None Remove="Image\icon.png" />
+    <None Remove="Image\Info.png" />
+    <None Remove="Image\Success.png" />
+    <None Remove="Image\Warning.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,7 +34,11 @@
 
   <ItemGroup>
     <Resource Include="Fonts\AnonymousPro-Regular.ttf" />
+    <Resource Include="Image\Error.png" />
     <Resource Include="Image\icon.png" />
+    <Resource Include="Image\Info.png" />
+    <Resource Include="Image\Success.png" />
+    <Resource Include="Image\Warning.png" />
   </ItemGroup>
 
     <ItemGroup>

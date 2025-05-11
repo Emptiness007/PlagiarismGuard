@@ -4,29 +4,29 @@ using Xceed.Words.NET;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using Xceed.Document.NET;
+using iText.Kernel.Pdf.Canvas.Parser.Listener;
+using System.Text.RegularExpressions;
 
 namespace PlagiarismGuard.Services
 {
     public class TextExtractorService
     {
-        public string ExtractText(string filePath, string format)
-        {
-            switch (format.ToLower())
-            {
-                case "docx":
-                    return ExtractFromDocx(filePath);
-                case "pdf":
-                    return ExtractFromPdf(filePath);
-                default:
-                    throw new NotSupportedException("Формат файла не поддерживается");
+            public string ExtractText(byte[] fileContent, string format) 
+            { 
+                switch (format.ToLower())
+                { 
+                    case "docx": return ExtractFromDocx(fileContent); 
+                    case "pdf": return ExtractFromPdf(fileContent); 
+                    default: throw new NotSupportedException("Формат файла не поддерживается"); 
+                } 
             }
-        }
 
-        private string ExtractFromDocx(string filePath)
+        private string ExtractFromDocx(byte[] fileContent)
         {
             try
             {
-                using (var doc = DocX.Load(filePath))
+                using (var stream = new MemoryStream(fileContent))
+                using (var doc = DocX.Load(stream))
                 {
                     StringBuilder text = new StringBuilder();
                     bool skipTitlePage = true;
@@ -103,20 +103,59 @@ namespace PlagiarismGuard.Services
             }
         }
 
-        private string ExtractFromPdf(string filePath)
+        private string ExtractFromPdf(byte[] fileContent)
         {
             try
             {
                 StringBuilder text = new StringBuilder();
-                using (var pdfReader = new PdfReader(filePath))
+                bool skipTitlePage = true;
+                int lineCount = 0;
+                const int maxTitlePageLines = 30;
+
+                using (var stream = new MemoryStream(fileContent))
+                using (var pdfReader = new PdfReader(stream))
                 using (var pdfDoc = new PdfDocument(pdfReader))
                 {
-                    for (int page = 1; page <= pdfDoc.GetNumberOfPages(); page++)
+                    for (int page = 2; page <= pdfDoc.GetNumberOfPages(); page++)
                     {
-                        text.Append(PdfTextExtractor.GetTextFromPage(pdfDoc.GetPage(page)));
+                        var strategy = new LocationTextExtractionStrategy();
+                        string pageText = PdfTextExtractor.GetTextFromPage(pdfDoc.GetPage(page), strategy);
+                        var lines = Regex.Split(pageText, @"\r\n|\n")
+                            .Select(line => line.Trim())
+                            .Where(line => !string.IsNullOrWhiteSpace(line))
+                            .ToList();
+
+                        foreach (var line in lines)
+                        {
+                            lineCount++;
+
+                            if (IsPdfTableOfContents(line))
+                                continue;
+
+                            if (IsPdfHeading(line))
+                                continue;
+
+                            if (IsPdfCaption(line))
+                                continue;
+
+                            if (skipTitlePage)
+                            {
+                                if (IsPdfTitlePageContent(line) || lineCount <= maxTitlePageLines)
+                                {
+                                    continue;
+                                }
+                                else
+                                {
+                                    skipTitlePage = false;
+                                }
+                            }
+
+                            text.AppendLine(line);
+                        }
                     }
                 }
-                return text.ToString();
+
+                return text.ToString().Trim();
             }
             catch (Exception ex)
             {
@@ -127,9 +166,9 @@ namespace PlagiarismGuard.Services
         private bool IsHeading(Paragraph paragraph)
         {
             if (paragraph.StyleName != null &&
-            (paragraph.StyleName.StartsWith("Heading", StringComparison.OrdinalIgnoreCase) ||
-             paragraph.StyleName.Contains("Заголовок", StringComparison.OrdinalIgnoreCase)))
-                {
+                (paragraph.StyleName.StartsWith("Heading", StringComparison.OrdinalIgnoreCase) ||
+                 paragraph.StyleName.Contains("Заголовок", StringComparison.OrdinalIgnoreCase)))
+            {
                 return true;
             }
             string trimmedText = paragraph.Text.Trim();
@@ -139,6 +178,26 @@ namespace PlagiarismGuard.Services
                 {
                     return true;
                 }
+            }
+            return false;
+        }
+
+        private bool IsPdfHeading(string line)
+        {
+            string trimmedLine = line.Trim();
+            if (string.IsNullOrEmpty(trimmedLine))
+                return false;
+
+            // Эвристика: заголовки короткие, не заканчиваются точкой, содержат ключевые слова
+            if (!trimmedLine.EndsWith(".") && trimmedLine.Length < 100)
+            {
+                string[] headingKeywords = { "ГЛАВА", "Глава", "SECTION", "Chapter", "Раздел" };
+                if (headingKeywords.Any(keyword => trimmedLine.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+                    return true;
+
+                // Проверка на номер главы (например, "1. Введение", "Глава 1")
+                if (Regex.IsMatch(trimmedLine, @"^\d+\.\s|^Глава\s+\d+", RegexOptions.IgnoreCase))
+                    return true;
             }
 
             return false;
@@ -157,14 +216,43 @@ namespace PlagiarismGuard.Services
             {
                 return true;
             }
-
             return false;
+        }
+
+        private bool IsPdfCaption(string line)
+        {
+            string[] captionKeywords = { "Рисунок", "Таблица", "Figure", "Table", "Caption" };
+            return captionKeywords.Any(keyword => line.Contains(keyword, StringComparison.OrdinalIgnoreCase));
         }
 
         private bool IsTitlePageContent(Paragraph paragraph)
         {
-            string[] titlePageKeywords = {"Содержание", "Курсовая работа", "Дипломная работа", "Дипломный проект", "Курсовой проект", "учреждение", "ЗАДАНИЕ", "Пояснительная записка", "Министерство", "Факультет", "Кафедра", "Выполнил", "Проверил", "Оглавление"};
+            string[] titlePageKeywords = { "Содержание", "Курсовая работа", "Дипломная работа", "Дипломный проект", "Курсовой проект", "учреждение", "ЗАДАНИЕ", "Пояснительная записка", "Министерство", "Факультет", "Кафедра", "Выполнил", "Проверил", "Оглавление" };
             return titlePageKeywords.Any(keyword => paragraph.Text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private bool IsPdfTitlePageContent(string line)
+        {
+            string[] titlePageKeywords = { "Курсовая работа", "Дипломная работа", "Дипломный проект", "Курсовой проект", "учреждение", "ЗАДАНИЕ", "Пояснительная записка", "Министерство", "Факультет", "Кафедра", "Выполнил", "Проверил" };
+            return titlePageKeywords.Any(keyword => line.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private bool IsPdfTableOfContents(string line)
+        {
+            string trimmedLine = line.Trim();
+            if (string.IsNullOrEmpty(trimmedLine))
+                return false;
+
+            // Ключевое слово "Оглавление" или "Содержание"
+            if (trimmedLine.Contains("Оглавление", StringComparison.OrdinalIgnoreCase) ||
+                trimmedLine.Contains("Содержание", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // Эвристика: строки вида "1.1 Текст", "1. Текст" с номерами пунктов
+            if (Regex.IsMatch(trimmedLine, @"^\d+(\.\d+)*\s+.*\d*$", RegexOptions.IgnoreCase))
+                return true;
+
+            return false;
         }
     }
 }

@@ -2,6 +2,7 @@
 using PlagiarismGuard.Data;
 using PlagiarismGuard.Models;
 using PlagiarismGuard.Services;
+using PlagiarismGuard.Windows;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -12,6 +13,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using Xceed.Document.NET;
 using Xceed.Words.NET;
+using static PlagiarismGuard.Windows.CustomMessageBox;
 
 namespace PlagiarismGuard.Pages
 {
@@ -90,7 +92,7 @@ namespace PlagiarismGuard.Pages
                 string fileName = Path.GetFileName(filePath);
                 string format = Path.GetExtension(filePath).ToLower().TrimStart('.');
                 byte[] fileContent = File.ReadAllBytes(filePath);
-                string text = _textExtractor.ExtractText(filePath, format);
+                string text = _textExtractor.ExtractText(fileContent, format);
 
                 try
                 {
@@ -133,7 +135,7 @@ namespace PlagiarismGuard.Pages
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ошибка при обработке документа: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CustomMessageBox.Show(Window.GetWindow(this), $"Ошибка при обработке документа: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageType.Error);
                 }
             }
         }
@@ -145,69 +147,79 @@ namespace PlagiarismGuard.Pages
                 string textToCheck = DocumentTextBox.Text;
                 if (string.IsNullOrEmpty(textToCheck))
                 {
-                    MessageBox.Show("Текст для проверки пуст!");
+                    CustomMessageBox.Show(Window.GetWindow(this), "Текст для проверки пуст!", "Предупреждение", MessageType.Warning);
                     return;
                 }
+
                 CheckButton.IsEnabled = false;
+                var progressWindow = new ProgressWindow();
+                progressWindow.Show();
 
-                var adminDocuments = _context.DocumentTexts
-                    .Where(dt => _context.Documents.Any(d => d.Id == dt.DocumentId &&
-                                                            _context.Users.Any(u => u.Id == d.UserId && u.Role == "admin")))
-                    .ToList();
-
-                if (!adminDocuments.Any())
+                try
                 {
-                    MessageBox.Show("На сервере нет документов, загруженных администратором, для проверки. Обратитесь к администратору.");
-                    return;
-                }
+                    var adminDocuments = _context.DocumentTexts
+                        .Where(dt => _context.Documents.Any(d => d.Id == dt.DocumentId &&
+                                                                _context.Users.Any(u => u.Id == d.UserId && u.Role == "admin")))
+                        .ToList();
 
-                _lastCheck = await _plagiarismChecker.PerformCheckTextAsync(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
-                var results = _context.CheckResults
-                    .Where(cr => cr.CheckId == _lastCheck.Id)
-                    .ToList();
-                var linkResults = _context.LinkCheckResults
-                .Where(lcr => lcr.CheckId == _lastCheck.Id)
-                .ToList();
-
-                if (results.Any())
-                {
-                    float plagiarismPercentage = _lastCheck.Similarity;
-                    SourceDataGrid.ItemsSource = results.Select((r, index) => new
+                    if (!adminDocuments.Any())
                     {
-                        SourceNo = index + 1,
-                        SourceName = _context.Documents.First(d => d.Id == r.SourceDocumentId).FileName,
-                        Excerpt = r.MatchedText,
-                        Similarity = $"{r.Similarity * 100:F2}%"
-                    });
-                    ProgressBar.Value = plagiarismPercentage;
-                    TextBlock.Text = $"Процент плагиата - {plagiarismPercentage:F2}%";
+                        CustomMessageBox.Show(Window.GetWindow(this), "На сервере нет документов, загруженных администратором, для проверки. Обратитесь к администратору.", "Предупреждение", MessageType.Warning);
+                        return;
+                    }
 
-                }
-                else
-                {
-                    SourceDataGrid.ItemsSource = null;
-                    ProgressBar.Value = 0;
-                    TextBlock.Text = "Совпадений не найдено";
-                }
-                if (linkResults.Any())
-                {
-                    LinkDataGrid.ItemsSource = linkResults.Select((lr, index) => new
+                    _lastCheck = await _plagiarismChecker.PerformCheckTextAsync(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
+                    var results = _context.CheckResults
+                        .Where(cr => cr.CheckId == _lastCheck.Id)
+                        .ToList();
+                    var linkResults = _context.LinkCheckResults
+                        .Where(lcr => lcr.CheckId == _lastCheck.Id)
+                        .ToList();
+
+                    if (results.Any())
                     {
-                        LinkNo = index + 1,
-                        Url = lr.Url,
-                        Status = lr.Status
-                    });
-                    LinkDataGrid.Visibility = Visibility.Visible;
+                        float plagiarismPercentage = _lastCheck.Similarity;
+                        SourceDataGrid.ItemsSource = results.Select((r, index) => new
+                        {
+                            SourceNo = index + 1,
+                            SourceName = _context.Documents.First(d => d.Id == r.SourceDocumentId).FileName,
+                            Excerpt = r.MatchedText,
+                            Similarity = $"{r.Similarity * 100:F2}%"
+                        });
+                        ProgressBar.Value = plagiarismPercentage;
+                        TextBlock.Text = $"Процент плагиата - {plagiarismPercentage:F2}%";
+                    }
+                    else
+                    {
+                        SourceDataGrid.ItemsSource = null;
+                        ProgressBar.Value = 0;
+                        TextBlock.Text = "Совпадений не найдено";
+                    }
+
+                    if (linkResults.Any())
+                    {
+                        LinkDataGrid.ItemsSource = linkResults.Select((lr, index) => new
+                        {
+                            LinkNo = index + 1,
+                            Url = lr.Url,
+                            Status = lr.Status
+                        });
+                        LinkDataGrid.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        LinkDataGrid.ItemsSource = null;
+                        LinkDataGrid.Visibility = Visibility.Collapsed;
+                    }
                 }
-                else
+                finally
                 {
-                    LinkDataGrid.ItemsSource = null;
-                    LinkDataGrid.Visibility = Visibility.Collapsed;
+                    progressWindow.Close();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при проверке: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBox.Show(Window.GetWindow(this), $"Ошибка при проверке: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageType.Error);
             }
             finally
             {
@@ -225,7 +237,7 @@ namespace PlagiarismGuard.Pages
         {
             if (_lastCheck == null)
             {
-                MessageBox.Show("Сначала выполните проверку!");
+                CustomMessageBox.Show(Window.GetWindow(this), "Сначала выполните проверку!", "Предупреждение", MessageType.Warning);
                 return;
             }
 

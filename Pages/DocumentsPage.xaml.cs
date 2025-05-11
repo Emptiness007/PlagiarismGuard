@@ -63,15 +63,14 @@ namespace PlagiarismGuard.Pages
 
                 try
                 {
-                    string text = _textExtractor.ExtractText(filePath, format);
+                    byte[] fileContent = File.ReadAllBytes(filePath);
+                    string text = _textExtractor.ExtractText(fileContent, format);
 
                     if (_plagiarismChecker.DocumentExists(text))
                     {
                         MessageBox.Show("Документ с таким содержимым уже существует в системе!", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
                         return;
                     }
-
-                    byte[] fileContent = File.ReadAllBytes(filePath);
 
                     var document = new Models.Document
                     {
