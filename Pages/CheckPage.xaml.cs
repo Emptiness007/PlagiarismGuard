@@ -24,10 +24,8 @@ namespace PlagiarismGuard.Pages
         private int _currentDocumentId;
         private Check _lastCheck;
         private bool _isResizing; 
-        private bool _isDragging; 
         private Point _startPoint; 
         private double _initialHeight; 
-        private Thickness _initialMargin;
 
         public CheckPage(PlagiarismContext context, TextExtractorService textExtractor, PlagiarismCheckService plagiarismChecker, ReportGeneratorService reportGenerator)
         {
@@ -41,10 +39,14 @@ namespace PlagiarismGuard.Pages
             ResizeHandle.MouseLeftButtonDown += ResizeHandle_MouseLeftButtonDown;
             ResizeHandle.MouseMove += ResizeHandle_MouseMove;
             ResizeHandle.MouseLeftButtonUp += ResizeHandle_MouseLeftButtonUp;
+            DocumentTextBox.TextChanged += DocumentTextBox_TextChanged;
+        }
 
-            DragHandle.MouseLeftButtonDown += DragHandle_MouseLeftButtonDown;
-            DragHandle.MouseMove += DragHandle_MouseMove;
-            DragHandle.MouseLeftButtonUp += DragHandle_MouseLeftButtonUp;
+        private void DocumentTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string text = DocumentTextBox.Text;
+            int wordCount = string.IsNullOrWhiteSpace(text) ? 0 : text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+            symbolCount.Text = $"Всего слов: {wordCount}";
         }
 
         private void ResizeHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -76,55 +78,6 @@ namespace PlagiarismGuard.Pages
             ResizeHandle.ReleaseMouseCapture();
         }
 
-        private void DragHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _isDragging = true;
-            _startPoint = e.GetPosition(this);
-            _initialMargin = ResultsGrid.Margin;
-            DragHandle.CaptureMouse();
-        }
-
-        private void DragHandle_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (_isDragging)
-            {
-                Point currentPoint = e.GetPosition(this);
-                double deltaY = currentPoint.Y - _startPoint.Y;
-
-                Thickness newMargin = new Thickness
-                {
-                    Left = _initialMargin.Left,
-                    Top = Math.Max(0, _initialMargin.Top + deltaY),
-                    Right = _initialMargin.Right,
-                    Bottom = _initialMargin.Bottom
-                };
-
-                double gridHeight = ResultsGrid.ActualHeight > 0 ? ResultsGrid.ActualHeight : 100;
-                double maxTop = ActualHeight - gridHeight;
-                if (newMargin.Top <= maxTop)
-                {
-                    ResultsGrid.Margin = newMargin;
-                }
-                else
-                {
-                    ResultsGrid.Margin = new Thickness
-                    {
-                        Left = newMargin.Left,
-                        Top = maxTop,
-                        Right = newMargin.Right,
-                        Bottom = newMargin.Bottom
-                    };
-                }
-
-            }
-        }
-
-        private void DragHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            _isDragging = false;
-            DragHandle.ReleaseMouseCapture();
-        }
-
         public void ImportDocument()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
@@ -136,7 +89,7 @@ namespace PlagiarismGuard.Pages
                 string filePath = openFileDialog.FileName;
                 string fileName = Path.GetFileName(filePath);
                 string format = Path.GetExtension(filePath).ToLower().TrimStart('.');
-                string serverPath = Path.Combine("uploads", "documents", Guid.NewGuid() + "." + format);
+                byte[] fileContent = File.ReadAllBytes(filePath);
                 string text = _textExtractor.ExtractText(filePath, format);
 
                 try
@@ -149,19 +102,15 @@ namespace PlagiarismGuard.Pages
                     {
                         _currentDocumentId = existingDocumentText.DocumentId;
                         DocumentTextBox.Text = text;
-                        symbolCount.Text = $"Всего слов: {text.Split(' ').Length}";
                         return;
                     }
-
-                    Directory.CreateDirectory(Path.GetDirectoryName(serverPath));
-                    File.Copy(filePath, serverPath);
 
                     var document = new Models.Document
                     {
                         UserId = CurrentUser.Instance.Id,
                         FileName = fileName,
-                        FilePath = serverPath,
-                        FileSize = new FileInfo(filePath).Length,
+                        FileContent = fileContent,
+                        FileSize = fileContent.Length,
                         UploadedAt = DateTime.Now,
                         Format = format
                     };
@@ -180,8 +129,7 @@ namespace PlagiarismGuard.Pages
 
                     _currentDocumentId = document.Id;
                     DocumentTextBox.Text = text;
-                    symbolCount.Text = $"Всего слов: {text.Split(' ').Length}";
-                    MessageBox.Show("Документ успешно загружен на сервер!");
+                    MessageBox.Show("Документ успешно загружен в базу данных!");
                 }
                 catch (Exception ex)
                 {
@@ -282,10 +230,13 @@ namespace PlagiarismGuard.Pages
             }
 
             var results = _context.CheckResults
-                .Where(cr => cr.CheckId == _lastCheck.Id)
+            .Where(cr => cr.CheckId == _lastCheck.Id)
+            .ToList();
+            var linkResults = _context.LinkCheckResults
+                .Where(lcr => lcr.CheckId == _lastCheck.Id)
                 .ToList();
 
-            _reportGenerator.GeneratePlagiarismReport(_lastCheck, results);
+            _reportGenerator.GeneratePlagiarismReport(_lastCheck, results, linkResults);
         }
     }
     

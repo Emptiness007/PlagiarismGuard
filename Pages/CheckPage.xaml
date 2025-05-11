@@ -22,16 +22,6 @@
                      TextWrapping="Wrap" Height="150" MinHeight="100" MaxHeight="500" VerticalAlignment="Top" Margin="0,20,140,0"/>
             <Border x:Name="ResizeHandle" Grid.Row="1" Height="1" Background="Transparent" Cursor="SizeNS" Margin="5,0,135,0"/>
             <Button x:Name="CheckButton" Click="CheckButton_Click" Content="Проверить" Style="{StaticResource ButtonStyle}" Width="120" HorizontalAlignment="Right" Margin="0,0,10,0">
-                <Button.ContentTemplate>
-                    <DataTemplate>
-                        <TextBlock x:Name="ButtonText" Text="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Content}" VerticalAlignment="Center"/>
-                        <DataTemplate.Triggers>
-                            <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=Button}}" Value="False">
-                                <Setter TargetName="ButtonText" Property="Text" Value="Идет проверка.."/>
-                            </DataTrigger>
-                        </DataTemplate.Triggers>
-                    </DataTemplate>
-                </Button.ContentTemplate>
             </Button>
         </Grid>
 
@@ -40,7 +30,6 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <Border x:Name="DragHandle" Grid.Row="0" Height="3" Margin="0,0,20,5" Background="Transparent" Cursor="SizeNS"/>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <Grid>
                     <Grid.RowDefinitions>

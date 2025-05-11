@@ -150,25 +150,21 @@ namespace PlagiarismGuard.Services
         {
             var linkResults = new List<LinkCheckResult>();
 
-            Debug.WriteLine($"Начало проверки ссылок. Всего ссылок: {links.Count}");
 
             var tasks = links.Select(link => VerifySingleLinkAsync(link, sentences)).ToList();
             var results = await Task.WhenAll(tasks);
             linkResults.AddRange(results.Where(r => r != null));
 
-            Debug.WriteLine($"Проверка ссылок завершена. Обработано ссылок: {linkResults.Count}");
             return linkResults;
         }
 
         private async Task<LinkCheckResult> VerifySingleLinkAsync(string link, List<string> sentences)
         {
-            Debug.WriteLine($"Проверка ссылки: {link}");
             try
             {
                 string webContent = await FetchWebContentAsync(link);
                 if (string.IsNullOrEmpty(webContent) || webContent.Length < 50)
                 {
-                    Debug.WriteLine($"Контент не извлечен или слишком короткий для {link}.");
                     return new LinkCheckResult
                     {
                         Url = link,
@@ -177,10 +173,8 @@ namespace PlagiarismGuard.Services
                     };
                 }
 
-                // Проверка языка контента
                 if (IsEnglishContent(webContent))
                 {
-                    Debug.WriteLine($"Контент на английском для {link}. Пропускаем проверку.");
                     return new LinkCheckResult
                     {
                         Url = link,
@@ -189,7 +183,6 @@ namespace PlagiarismGuard.Services
                     };
                 }
 
-                Debug.WriteLine($"Контент успешно извлечен для {link}. Длина контента: {webContent.Length} символов");
                 bool isMatchFound = false;
 
                 foreach (var sentence in sentences)
@@ -197,17 +190,10 @@ namespace PlagiarismGuard.Services
                     var matches = CalculateSimilarity(sentence, webContent);
                     if (matches.Any())
                     {
-                        Debug.WriteLine($"Совпадения найдены для ссылки {link}. Предложение: '{sentence}', Совпадений: {matches.Count}");
-                        foreach (var (similarity, matchedText) in matches)
-                        {
-                            Debug.WriteLine($"Сходство: {similarity:F2}, Совпавший текст: '{matchedText}'");
-                        }
                         isMatchFound = true;
                         break;
                     }
                 }
-
-                Debug.WriteLine($"Результат проверки ссылки {link}: {(isMatchFound ? "Совпадение найдено" : "Совпадений нет")}");
 
                 return new LinkCheckResult
                 {
@@ -218,7 +204,6 @@ namespace PlagiarismGuard.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Ошибка при проверке ссылки {link}: {ex.Message}");
                 return new LinkCheckResult
                 {
                     Url = link,
@@ -269,12 +254,10 @@ namespace PlagiarismGuard.Services
 
                 result = Regex.Replace(result, @"\s+", " ").Trim();
 
-                Debug.WriteLine($"Извлеченный контент ({url}): {result}");
                 return result;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Ошибка при извлечении контента из {url}: {ex.Message}");
                 return string.Empty;
             }
         }
@@ -311,7 +294,7 @@ namespace PlagiarismGuard.Services
                 int maxLength = Math.Max(text1.Length, sentence2.Length);
                 double similarity = maxLength == 0 ? 0 : 1.0 - (double)distance / maxLength;
 
-                if (similarity > 0.8)
+                if (similarity > 0.5)
                 {
                     matches.Add((similarity, text1));
                 }

@@ -105,17 +105,6 @@ namespace PlagiarismGuard.Pages
                             _context.Checks.Remove(check);
                         }
 
-                        if (File.Exists(document.FilePath))
-                        {
-                            try
-                            {
-                                File.Delete(document.FilePath);
-                            }
-                            catch (Exception ex)
-                            {
-                                MessageBox.Show($"Ошибка при удалении файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                            }
-                        }
 
                         _context.Documents.Remove(document);
                     }

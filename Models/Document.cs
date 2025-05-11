@@ -23,9 +23,9 @@ namespace PlagiarismGuard.Models
         public string FileName { get; set; }
 
         [Required]
-        [MaxLength(255)]
-        [Column("file_path")]
-        public string FilePath { get; set; }
+        [Column("file_content", TypeName = "LONGBLOB")]
+        public byte[] FileContent { get; set; }
+
         [Column("file_size")]
 
         public long FileSize { get; set; }

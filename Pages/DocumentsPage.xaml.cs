@@ -60,7 +60,6 @@ namespace PlagiarismGuard.Pages
                 string filePath = openFileDialog.FileName;
                 string fileName = Path.GetFileName(filePath);
                 string format = Path.GetExtension(filePath).ToLower().TrimStart('.');
-                string serverPath = Path.Combine("uploads", "documents", Guid.NewGuid() + "." + format);
 
                 try
                 {
@@ -72,15 +71,14 @@ namespace PlagiarismGuard.Pages
                         return;
                     }
 
-                    Directory.CreateDirectory(Path.GetDirectoryName(serverPath));
-                    File.Copy(filePath, serverPath);
+                    byte[] fileContent = File.ReadAllBytes(filePath);
 
                     var document = new Models.Document
                     {
                         UserId = CurrentUser.Instance.Id,
                         FileName = fileName,
-                        FilePath = serverPath,
-                        FileSize = new FileInfo(filePath).Length,
+                        FileContent = fileContent,
+                        FileSize = fileContent.Length,
                         UploadedAt = DateTime.Now,
                         Format = format
                     };
@@ -97,7 +95,7 @@ namespace PlagiarismGuard.Pages
                     _context.DocumentTexts.Add(documentText);
                     _context.SaveChanges();
 
-                    MessageBox.Show("Документ успешно загружен на сервер!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Документ успешно загружен в базу данных!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                     LoadDocuments();
                 }
                 catch (Exception ex)
@@ -106,6 +104,46 @@ namespace PlagiarismGuard.Pages
                 }
             }
         }
+
+        private void DownloadButton_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            if (button != null)
+            {
+                int documentId = (int)button.Tag;
+                var document = _context.Documents.FirstOrDefault(d => d.Id == documentId);
+
+                if (document != null)
+                {
+                    if (CurrentUser.Instance.Role != "admin" && document.UserId != CurrentUser.Instance.Id)
+                    {
+                        MessageBox.Show("Вы можете скачивать только свои документы!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    SaveFileDialog saveFileDialog = new SaveFileDialog
+                    {
+                        Filter = document.Format == "docx" ? "Word Documents (*.docx)|*.docx" : "PDF Files (*.pdf)|*.pdf",
+                        FileName = document.FileName,
+                        DefaultExt = document.Format
+                    };
+
+                    if (saveFileDialog.ShowDialog() == true)
+                    {
+                        try
+                        {
+                            File.WriteAllBytes(saveFileDialog.FileName, document.FileContent);
+                            MessageBox.Show("Документ успешно скачан!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Ошибка при скачивании документа: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                    }
+                }
+            }
+        }
+
         private void PlagiarismCheck_Checked(object sender, RoutedEventArgs e)
         {
             var checkBox = sender as CheckBox;

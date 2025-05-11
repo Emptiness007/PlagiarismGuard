@@ -73,8 +73,11 @@ namespace PlagiarismGuard.Pages
                 var results = _context.CheckResults
                     .Where(cr => cr.CheckId == checkId)
                     .ToList();
+                var linkResults = _context.LinkCheckResults
+                                .Where(lcr => lcr.CheckId == checkId)
+                                .ToList();
 
-                _reportGenerator.GeneratePlagiarismReport(check, results);
+                _reportGenerator.GeneratePlagiarismReport(check, results, linkResults);
             }
         }
     }

@@ -29,7 +29,7 @@
                 <DataGridTextColumn Header="Дата загрузки" Binding="{Binding UploadedAt, StringFormat={}{0:dd.MM.yyyy HH:mm}}" Width="120"/>
                 <DataGridCheckBoxColumn x:Name="PlagiarismCheckColumn" Header="Использовать для проверки" 
                         Binding="{Binding IsUsedForPlagiarismCheck, UpdateSourceTrigger=PropertyChanged}" 
-                        Width="160">
+                        Width="130">
                     <DataGridCheckBoxColumn.ElementStyle>
                         <Style TargetType="CheckBox">
                             <Setter Property="Tag" Value="{Binding Id}"/>
@@ -38,10 +38,13 @@
                         </Style>
                     </DataGridCheckBoxColumn.ElementStyle>
                 </DataGridCheckBoxColumn>
-                <DataGridTemplateColumn Header="Действия" Width="100" IsReadOnly="False">
+                <DataGridTemplateColumn Header="Действия" IsReadOnly="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Content="Удалить" Click="DeleteButton_Click" Tag="{Binding Id}" Style="{StaticResource ButtonStyle}" Width="80" Margin="3"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Скачать" Click="DownloadButton_Click" Tag="{Binding Id}" Style="{StaticResource ButtonStyle}" Width="80" Margin="3"/>
+                                <Button Content="Удалить" Click="DeleteButton_Click" Tag="{Binding Id}" Style="{StaticResource ButtonStyle}" Width="80" Margin="3"/>
+                            </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
