@@ -19,9 +19,10 @@ namespace PlagiarismGuard.Windows
     /// </summary>
     public partial class ProgressWindow : Window
     {
-        public ProgressWindow() 
+        public ProgressWindow(Window owner) 
         { 
-            InitializeComponent(); 
+            InitializeComponent();
+            Owner = owner;
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using PlagiarismGuard.Data;
 using PlagiarismGuard.Models;
+using PlagiarismGuard.Windows;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,6 +10,7 @@ using System.Windows;
 using Xceed.Document.NET;
 using Xceed.Drawing;
 using Xceed.Words.NET;
+using static PlagiarismGuard.Windows.CustomMessageBox;
 using VerticalAlignment = Xceed.Document.NET.VerticalAlignment;
 
 namespace PlagiarismGuard.Services
@@ -41,12 +43,8 @@ namespace PlagiarismGuard.Services
 
                 if (isDoc)
                 {
-                    MessageBox.Show(
-                        "Формат .doc не поддерживается библиотекой Xceed.Words.NET. Отчет будет сохранен в формате .docx.",
-                        "Предупреждение",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information
-                    );
+                    CustomMessageBox.Show(Window.GetWindow(new MainWindow(CurrentUser.Instance.Id)), "Формат .doc не поддерживается библиотекой Xceed.Words.NET. Отчет будет сохранен в формате .docx.",
+                        "Предупреждение", MessageType.Information);
                     filePath = Path.ChangeExtension(filePath, ".docx");
                 }
 
@@ -208,21 +206,12 @@ namespace PlagiarismGuard.Services
                     doc.Save();
                 }
 
-                MessageBox.Show(
-                    $"Отчет успешно сохранен в {filePath}",
-                    "Успех",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information
-                );
+                CustomMessageBox.Show(Window.GetWindow(new MainWindow(CurrentUser.Instance.Id)), $"Отчет успешно сохранен в {filePath}", "Успех", MessageType.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"Ошибка при создании отчета: {ex.Message}\nПодробности: {ex.InnerException?.Message ?? "Нет дополнительной информации"}",
-                    "Ошибка",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error
-                );
+                CustomMessageBox.Show(Window.GetWindow(new MainWindow(CurrentUser.Instance.Id)), $"Ошибка при создании отчета: {ex.Message}\nПодробности: {ex.InnerException?.Message ?? "Нет дополнительной информации"}",
+                    "Ошибка", MessageType.Error);
             }
         }
     }

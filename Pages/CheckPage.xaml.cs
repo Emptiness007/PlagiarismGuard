@@ -131,7 +131,7 @@ namespace PlagiarismGuard.Pages
 
                     _currentDocumentId = document.Id;
                     DocumentTextBox.Text = text;
-                    MessageBox.Show("Документ успешно загружен в базу данных!");
+                    CustomMessageBox.Show(Window.GetWindow(this), "Документ успешно загружен в базу данных!", "Успех", MessageType.Information);
                 }
                 catch (Exception ex)
                 {
@@ -152,23 +152,18 @@ namespace PlagiarismGuard.Pages
                 }
 
                 CheckButton.IsEnabled = false;
-                var progressWindow = new ProgressWindow();
-                progressWindow.Show();
+                var progressWindow = new ProgressWindow(Window.GetWindow(this));
+                Application.Current.Dispatcher.Invoke(() => progressWindow.Show());
 
                 try
                 {
-                    var adminDocuments = _context.DocumentTexts
-                        .Where(dt => _context.Documents.Any(d => d.Id == dt.DocumentId &&
-                                                                _context.Users.Any(u => u.Id == d.UserId && u.Role == "admin")))
-                        .ToList();
-
-                    if (!adminDocuments.Any())
+                    System.Diagnostics.Debug.WriteLine("Starting plagiarism check");
+                    // Выполняем проверку в фоновом потоке
+                    await Task.Run(async () =>
                     {
-                        CustomMessageBox.Show(Window.GetWindow(this), "На сервере нет документов, загруженных администратором, для проверки. Обратитесь к администратору.", "Предупреждение", MessageType.Warning);
-                        return;
-                    }
+                        _lastCheck = await _plagiarismChecker.PerformCheckTextAsync(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
+                    });
 
-                    _lastCheck = await _plagiarismChecker.PerformCheckTextAsync(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
                     var results = _context.CheckResults
                         .Where(cr => cr.CheckId == _lastCheck.Id)
                         .ToList();
@@ -214,7 +209,8 @@ namespace PlagiarismGuard.Pages
                 }
                 finally
                 {
-                    progressWindow.Close();
+                    System.Diagnostics.Debug.WriteLine("Closing ProgressWindow");
+                    Application.Current.Dispatcher.Invoke(() => progressWindow.Close());
                 }
             }
             catch (Exception ex)

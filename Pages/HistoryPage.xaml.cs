@@ -2,6 +2,7 @@
 using PlagiarismGuard.Data;
 using PlagiarismGuard.Models;
 using PlagiarismGuard.Services;
+using PlagiarismGuard.Windows;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +17,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using static PlagiarismGuard.Windows.CustomMessageBox;
 
 namespace PlagiarismGuard.Pages
 {
@@ -66,7 +68,7 @@ namespace PlagiarismGuard.Pages
 
                 if (check == null)
                 {
-                    MessageBox.Show("Проверка не найдена!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CustomMessageBox.Show(Window.GetWindow(this), "Проверка не найдена!", "Ошибка", MessageType.Error);
                     return;
                 }
 

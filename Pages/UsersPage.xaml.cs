@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using static PlagiarismGuard.Windows.CustomMessageBox;
 
 namespace PlagiarismGuard.Pages
 {
@@ -36,12 +37,12 @@ namespace PlagiarismGuard.Pages
                 {
                     if (_context.Users.Any(u => u.Username == addUserWindow.Username))
                     {
-                        MessageBox.Show("Пользователь с таким именем уже существует!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        CustomMessageBox.Show(Window.GetWindow(this), "Пользователь с таким именем уже существует!", "Ошибка", MessageType.Error);
                         return;
                     }
                     if (_context.Users.Any(u => u.Email == addUserWindow.Email))
                     {
-                        MessageBox.Show("Пользователь с таким email уже существует!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        CustomMessageBox.Show(Window.GetWindow(this), "Пользователь с таким email уже существует!", "Ошибка", MessageType.Error);
                         return;
                     }
 
@@ -56,12 +57,12 @@ namespace PlagiarismGuard.Pages
                     _context.Users.Add(user);
                     _context.SaveChanges();
 
-                    MessageBox.Show($"Пользователь успешно добавлен!\nЛогин: {addUserWindow.Username}\nПароль: {addUserWindow.GeneratedPassword}", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CustomMessageBox.Show(Window.GetWindow(this), $"Пользователь успешно добавлен!\nЛогин: {addUserWindow.Username}\nПароль: {addUserWindow.GeneratedPassword}", "Успех", MessageType.Information);
                     LoadUsers();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ошибка при добавлении пользователя: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CustomMessageBox.Show(Window.GetWindow(this), $"Ошибка при добавлении пользователя: {ex.Message}", "Ошибка", MessageType.Error);
                 }
             }
         }
@@ -70,7 +71,7 @@ namespace PlagiarismGuard.Pages
         {
             if (CurrentUser.Instance.Role != "admin")
             {
-                MessageBox.Show("Только администратор может удалять пользователей!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBox.Show(Window.GetWindow(this), "Только администратор может удалять пользователей!", "Ошибка", MessageType.Error);
                 return;
             }
 
@@ -84,7 +85,7 @@ namespace PlagiarismGuard.Pages
                 {
                     if (user.Id == CurrentUser.Instance.Id)
                     {
-                        MessageBox.Show("Вы не можете удалить самого себя!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        CustomMessageBox.Show(Window.GetWindow(this), "Вы не можете удалить самого себя!", "Ошибка", MessageType.Error);
                         return;
                     }
 
@@ -112,7 +113,7 @@ namespace PlagiarismGuard.Pages
                     _context.Users.Remove(user);
                     _context.SaveChanges();
 
-                    MessageBox.Show("Пользователь успешно удален!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CustomMessageBox.Show(Window.GetWindow(this), "Пользователь успешно удален!", "Успех", MessageType.Information);
                     LoadUsers();
                 }
             }

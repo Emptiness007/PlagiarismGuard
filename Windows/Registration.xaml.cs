@@ -16,6 +16,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using static PlagiarismGuard.Windows.CustomMessageBox;
 
 namespace PlagiarismGuard.Windows
 {
@@ -109,7 +110,7 @@ namespace PlagiarismGuard.Windows
                 _context.Users.Add(newUser);
                 _context.SaveChanges();
 
-                MessageBox.Show("Регистрация успешна! Теперь вы можете войти.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                CustomMessageBox.Show(Window.GetWindow(this), "Регистрация успешна! Теперь вы можете войти.", "Успех", MessageType.Information);
 
                 var authWindow = new Authorization();
                 authWindow.Show();

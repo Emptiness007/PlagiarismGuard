@@ -3,11 +3,13 @@ using Microsoft.Win32;
 using PlagiarismGuard.Data;
 using PlagiarismGuard.Models;
 using PlagiarismGuard.Services;
+using PlagiarismGuard.Windows;
 using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using static PlagiarismGuard.Windows.CustomMessageBox;
 
 namespace PlagiarismGuard.Pages
 {
@@ -68,7 +70,7 @@ namespace PlagiarismGuard.Pages
 
                     if (_plagiarismChecker.DocumentExists(text))
                     {
-                        MessageBox.Show("Документ с таким содержимым уже существует в системе!", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        CustomMessageBox.Show(Window.GetWindow(this), "Документ с таким содержимым уже существует в системе!", "Предупреждение", MessageType.Warning);
                         return;
                     }
 
@@ -94,12 +96,12 @@ namespace PlagiarismGuard.Pages
                     _context.DocumentTexts.Add(documentText);
                     _context.SaveChanges();
 
-                    MessageBox.Show("Документ успешно загружен в базу данных!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CustomMessageBox.Show(Window.GetWindow(this), "Документ успешно загружен в базу данных!", "Успех", MessageType.Information);
                     LoadDocuments();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ошибка при загрузке документа: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CustomMessageBox.Show(Window.GetWindow(this), $"Ошибка при загрузке документа: {ex.Message}", "Ошибка", MessageType.Error);
                 }
             }
         }
@@ -116,7 +118,7 @@ namespace PlagiarismGuard.Pages
                 {
                     if (CurrentUser.Instance.Role != "admin" && document.UserId != CurrentUser.Instance.Id)
                     {
-                        MessageBox.Show("Вы можете скачивать только свои документы!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        CustomMessageBox.Show(Window.GetWindow(this), "Вы можете скачивать только свои документы!", "Ошибка", MessageType.Error);
                         return;
                     }
 
@@ -132,11 +134,11 @@ namespace PlagiarismGuard.Pages
                         try
                         {
                             File.WriteAllBytes(saveFileDialog.FileName, document.FileContent);
-                            MessageBox.Show("Документ успешно скачан!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                            CustomMessageBox.Show(Window.GetWindow(this), "Документ успешно скачан!", "Успех", MessageType.Information);
                         }
                         catch (Exception ex)
                         {
-                            MessageBox.Show($"Ошибка при скачивании документа: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                            CustomMessageBox.Show(Window.GetWindow(this), $"Ошибка при скачивании документа: {ex.Message}", "Ошибка", MessageType.Error);
                         }
                     }
                 }
@@ -154,7 +156,6 @@ namespace PlagiarismGuard.Pages
                 {
                     document.IsUsedForPlagiarismCheck = true;
                     _context.SaveChanges();
-                    System.Diagnostics.Debug.WriteLine($"Документ {documentId} помечен для проверки на плагиат");
                 }
             }
         }
@@ -170,7 +171,6 @@ namespace PlagiarismGuard.Pages
                 {
                     document.IsUsedForPlagiarismCheck = false;
                     _context.SaveChanges();
-                    System.Diagnostics.Debug.WriteLine($"Документ {documentId} исключён из проверки на плагиат");
                 }
             }
         }
@@ -185,11 +185,6 @@ namespace PlagiarismGuard.Pages
 
                 if (document != null)
                 {
-                    if (CurrentUser.Instance.Role != "admin" && document.UserId != CurrentUser.Instance.Id)
-                    {
-                        MessageBox.Show("Вы можете удалять только свои документы!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
-                    }
 
                     var documentText = _context.DocumentTexts.FirstOrDefault(dt => dt.DocumentId == documentId);
                     if (documentText != null)
@@ -219,7 +214,7 @@ namespace PlagiarismGuard.Pages
                     _context.Documents.Remove(document);
                     _context.SaveChanges();
 
-                    MessageBox.Show("Документ успешно удален!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CustomMessageBox.Show(Window.GetWindow(this), "Документ успешно удален!", "Успех", MessageType.Information);
                     LoadDocuments();
                 }
             }

@@ -6,7 +6,7 @@ namespace PlagiarismGuard.Data
 {
     public class PlagiarismContext : DbContext
     {
-        private readonly string _connectionString;
+        private readonly string _connectionString = "Server=127.0.0.1;Database=Plagiarism;Port=3307;user=root;pwd=;";
 
         public DbSet<User> Users { get; set; }
         public DbSet<Document> Documents { get; set; }
@@ -15,13 +15,9 @@ namespace PlagiarismGuard.Data
         public DbSet<CheckResult> CheckResults { get; set; }
         public DbSet<LinkCheckResult> LinkCheckResults { get; set; }
 
-        public PlagiarismContext() : this(GetConnectionString())
-        {
-        }
 
-        public PlagiarismContext(string connectionString)
+        public PlagiarismContext()
         {
-            _connectionString = connectionString;
             Database.EnsureCreated();
         }
 
