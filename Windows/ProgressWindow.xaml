@@ -23,5 +23,8 @@
                 <SolidColorBrush Color="#636AE8"/>
             </ProgressBar.Foreground>
         </ProgressBar>
+        <Button x:Name="CancelButton" Grid.Row="2" Content="Отмена" Width="100" Height="30" Margin="10,0,10,5" 
+                Style="{StaticResource ButtonStyle}" FontSize="14" Click="CancelButton_Click" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+        </Button>
     </Grid>
 </Window>

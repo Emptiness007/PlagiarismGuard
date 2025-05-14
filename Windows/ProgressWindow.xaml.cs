@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,14 +20,34 @@ namespace PlagiarismGuard.Windows
     /// </summary>
     public partial class ProgressWindow : Window
     {
-        public ProgressWindow(Window owner) 
-        { 
+        private readonly Action _cancelAction;
+
+        public ProgressWindow(Window owner, Action cancelAction = null)
+        {
             InitializeComponent();
             Owner = owner;
+            _cancelAction = cancelAction;
+            CancelButton.Visibility = cancelAction != null ? Visibility.Visible : Visibility.Collapsed;
         }
+
         public void UpdateProgress(string message)
         {
-            ProgressText.Text = message;
+            Dispatcher.Invoke(() =>
+            {
+                ProgressText.Text = message;
+            });
+        }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            _cancelAction?.Invoke();
+            Close();
+        }
+
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            base.OnClosing(e);
+            _cancelAction?.Invoke();
         }
     }
 }

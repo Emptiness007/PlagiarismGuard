@@ -69,6 +69,7 @@ namespace PlagiarismGuard.Services
                         .Font("Arial")
                         .FontSize(12);
                     infoPara.Append($"Дата проверки: {check.CheckedAt:dd.MM.yyyy HH:mm}\n")
+                           .Append($"Проверяемый документ: {_context.Documents.Where(x=> x.Id == check.DocumentId).First().FileName}\n")
                            .Append($"Процент плагиата: {check.Similarity:F2}%")
                            .SpacingAfter(10);
 

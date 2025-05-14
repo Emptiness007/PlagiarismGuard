@@ -1,0 +1,45 @@
+﻿<Window x:Class="PlagiarismGuard.Windows.ComparisonWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PlagiarismGuard.Windows"
+        mc:Ignorable="d"
+         Height="600" Width="1000"
+        WindowStyle="SingleBorderWindow" ResizeMode="CanResize" WindowStartupLocation="CenterOwner"
+        Background="#F5F6F5" BorderBrush="#636AE8" BorderThickness="1">
+    <Window.Resources>
+        <ResourceDictionary Source="/Styles/Style.xaml"/>
+    </Window.Resources>
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Заголовки -->
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Проверяемый документ" FontFamily="/Fonts/#Anonymous Pro" FontSize="16" 
+                   Margin="5,0,5,10" HorizontalAlignment="Center"/>
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="Документ с совпадением" FontFamily="/Fonts/#Anonymous Pro" FontSize="16" 
+                   Margin="5,0,5,10" HorizontalAlignment="Center"/>
+
+        <!-- Текстовые поля -->
+        <RichTextBox x:Name="CheckedDocumentTextBox" Grid.Row="1" Grid.Column="0" IsReadOnly="True" 
+                     FontFamily="/Fonts/#Anonymous Pro" FontSize="14" BorderBrush="#636AE8" 
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Margin="5"/>
+        <RichTextBox x:Name="SourceDocumentTextBox" Grid.Row="1" Grid.Column="2" IsReadOnly="True" 
+                     FontFamily="/Fonts/#Anonymous Pro" FontSize="14" BorderBrush="#636AE8" 
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Margin="5"/>
+
+        <!-- Кнопка закрытия -->
+        <Button Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Content="Закрыть" Width="100" Height="30" 
+                Margin="10" HorizontalAlignment="Center" FontFamily="/Fonts/#Anonymous Pro" FontSize="14" 
+                Style="{StaticResource ButtonStyle}" Click="CloseButton_Click"/>
+    </Grid>
+</Window>

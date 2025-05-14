@@ -18,6 +18,7 @@ namespace PlagiarismGuard.Services
         private readonly PlagiarismContext _context;
         private readonly HttpClient _httpClient;
         private const int MaxTextLength = 10000;
+        private const int MinSentenceLength = 80;
         public PlagiarismCheckService(PlagiarismContext context)
         {
             _context = context;
@@ -46,7 +47,7 @@ namespace PlagiarismGuard.Services
             }
         }
 
-        public async Task<Check> PerformCheckTextAsync(string inputText, int documentId, int userId)
+        public async Task<Check> PerformCheckTextAsync(string inputText, int documentId, int userId, IProgress<string> progress = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(inputText))
                 throw new Exception("Текст для проверки не указан");
@@ -58,41 +59,68 @@ namespace PlagiarismGuard.Services
                 .ToList();
             var referenceDocs = _context.DocumentTexts
                 .Where(dt => dt.DocumentId != documentId &&
-                            dt.TextHash != inputTextHash &&
-                            _context.Documents.Any(d => d.Id == dt.DocumentId && d.IsUsedForPlagiarismCheck))
+                             dt.TextHash != inputTextHash &&
+                             _context.Documents.Any(d => d.Id == dt.DocumentId && d.IsUsedForPlagiarismCheck))
                 .ToList();
 
             var results = new List<CheckResult>();
             var linkResults = new List<LinkCheckResult>();
             var matchedByDocument = new Dictionary<int, (List<string> MatchedFragments, List<double> Similarities)>();
+            var processedSentences = new HashSet<string>();
+
+            int totalSentences = sentences.Count;
+            int processedCount = 0;
 
             foreach (var sentence in sentences)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (sentence.Length < MinSentenceLength)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Пропущено короткое предложение: {sentence} (длина: {sentence.Length})");
+                    processedCount++;
+                    progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
+                    continue;
+                }
+
+                if (processedSentences.Contains(sentence))
+                {
+                    processedCount++;
+                    progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
+                    continue;
+                }
+
                 foreach (var refDoc in referenceDocs)
                 {
                     if (string.IsNullOrEmpty(refDoc.TextContent))
                         continue;
 
-                    var matches = CalculateSimilarity(sentence, refDoc.TextContent);
+                    var match = CalculateSimilarity(sentence, refDoc.TextContent);
 
-                    if (matches.Any())
+                    if (match != null)
                     {
                         if (!matchedByDocument.ContainsKey(refDoc.DocumentId))
                         {
                             matchedByDocument[refDoc.DocumentId] = (new List<string>(), new List<double>());
                         }
 
-                        foreach (var (similarity, matchedText) in matches)
+                        if (!matchedByDocument[refDoc.DocumentId].MatchedFragments.Contains(match.Value.MatchedText))
                         {
-                            matchedByDocument[refDoc.DocumentId].MatchedFragments.Add(matchedText);
-                            matchedByDocument[refDoc.DocumentId].Similarities.Add(similarity);
+                            matchedByDocument[refDoc.DocumentId].MatchedFragments.Add(match.Value.MatchedText);
+                            matchedByDocument[refDoc.DocumentId].Similarities.Add(match.Value.Similarity);
                         }
+
+                        processedSentences.Add(sentence);
+                        break;
                     }
                 }
+
+                processedCount++;
+                progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
             }
 
             var links = ExtractLinks(inputText);
-            linkResults.AddRange(await VerifyLinksAsync(links, sentences));
+            linkResults.AddRange(await VerifyLinksAsync(links, sentences, progress, cancellationToken));
 
             results.AddRange(matchedByDocument
                 .Where(kvp => kvp.Value.MatchedFragments.Any())
@@ -133,7 +161,37 @@ namespace PlagiarismGuard.Services
 
             _context.SaveChanges();
 
+            progress?.Report("Проверка документа: 100%");
             return check;
+        }
+
+        private (double Similarity, string MatchedText)? CalculateSimilarity(string text1, string text2)
+        {
+            if (string.IsNullOrEmpty(text1) || string.IsNullOrEmpty(text2))
+                return null;
+
+            var sentences2 = Regex.Split(text2, @"(?<=[.!?])\s+").Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+            if (!sentences2.Any())
+                return null;
+
+            (double Similarity, string MatchedText)? bestMatch = null;
+
+            foreach (var sentence2 in sentences2)
+            {
+                int distance = LevenshteinDistance(text1, sentence2);
+                int maxLength = Math.Max(text1.Length, sentence2.Length);
+                double similarity = maxLength == 0 ? 0 : 1.0 - (double)distance / maxLength;
+
+                if (similarity > 0.8)
+                {
+                    if (bestMatch == null || similarity > bestMatch.Value.Similarity)
+                    {
+                        bestMatch = (similarity, text1);
+                    }
+                }
+            }
+
+            return bestMatch;
         }
 
         private List<string> ExtractLinks(string text)
@@ -146,22 +204,21 @@ namespace PlagiarismGuard.Services
                 .ToList();
         }
 
-        private async Task<List<LinkCheckResult>> VerifyLinksAsync(List<string> links, List<string> sentences)
+        private async Task<List<LinkCheckResult>> VerifyLinksAsync(List<string> links, List<string> sentences, IProgress<string> progress, CancellationToken cancellationToken)
         {
             var linkResults = new List<LinkCheckResult>();
-
-
-            var tasks = links.Select(link => VerifySingleLinkAsync(link, sentences)).ToList();
+            var tasks = links.Select(link => VerifySingleLinkAsync(link, sentences, cancellationToken)).ToList();
             var results = await Task.WhenAll(tasks);
             linkResults.AddRange(results.Where(r => r != null));
-
+            progress?.Report("Проверка документа: 100%");
             return linkResults;
         }
 
-        private async Task<LinkCheckResult> VerifySingleLinkAsync(string link, List<string> sentences)
+        private async Task<LinkCheckResult> VerifySingleLinkAsync(string link, List<string> sentences, CancellationToken cancellationToken)
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string webContent = await FetchWebContentAsync(link);
                 if (string.IsNullOrEmpty(webContent) || webContent.Length < 50)
                 {
@@ -187,8 +244,9 @@ namespace PlagiarismGuard.Services
 
                 foreach (var sentence in sentences)
                 {
-                    var matches = CalculateSimilarity(sentence, webContent);
-                    if (matches.Any())
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var match = CalculateSimilarity(sentence, webContent);
+                    if (match != null)
                     {
                         isMatchFound = true;
                         break;
@@ -276,32 +334,6 @@ namespace PlagiarismGuard.Services
             return latinRatio > 0.7 && hasEnglishWords;
         }
 
-        private List<(double Similarity, string MatchedText)> CalculateSimilarity(string text1, string text2)
-        {
-            var matches = new List<(double Similarity, string MatchedText)>();
-
-            if (string.IsNullOrEmpty(text1) || string.IsNullOrEmpty(text2))
-                return matches;
-
-            var sentences2 = Regex.Split(text2, @"(?<=[.!?])\s+").Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-
-            if (!sentences2.Any())
-                return matches;
-
-            foreach (var sentence2 in sentences2)
-            {
-                int distance = LevenshteinDistance(text1, sentence2);
-                int maxLength = Math.Max(text1.Length, sentence2.Length);
-                double similarity = maxLength == 0 ? 0 : 1.0 - (double)distance / maxLength;
-
-                if (similarity > 0.5)
-                {
-                    matches.Add((similarity, text1));
-                }
-            }
-
-            return matches;
-        }
 
         private int LevenshteinDistance(string s, string t)
         {

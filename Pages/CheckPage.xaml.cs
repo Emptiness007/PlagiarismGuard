@@ -17,6 +17,14 @@ using static PlagiarismGuard.Windows.CustomMessageBox;
 
 namespace PlagiarismGuard.Pages
 {
+    public class SourceGridItem
+    {
+        public int SourceNo { get; set; }
+        public string SourceName { get; set; }
+        public int SourceDocumentId { get; set; }
+        public string MatchedText { get; set; }
+        public string Similarity { get; set; }
+    }
     public partial class CheckPage : Page
     {
         private readonly PlagiarismContext _context;
@@ -152,16 +160,22 @@ namespace PlagiarismGuard.Pages
                 }
 
                 CheckButton.IsEnabled = false;
-                var progressWindow = new ProgressWindow(Window.GetWindow(this));
+                using var cts = new CancellationTokenSource();
+                var progressWindow = new ProgressWindow(Window.GetWindow(this), () => cts.Cancel());
+                var progress = new Progress<string>(message => progressWindow.UpdateProgress(message));
                 Application.Current.Dispatcher.Invoke(() => progressWindow.Show());
 
                 try
                 {
-                    System.Diagnostics.Debug.WriteLine("Starting plagiarism check");
                     await Task.Run(async () =>
                     {
-                        _lastCheck = await _plagiarismChecker.PerformCheckTextAsync(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
-                    });
+                        _lastCheck = await _plagiarismChecker.PerformCheckTextAsync(
+                            textToCheck,
+                            _currentDocumentId,
+                            CurrentUser.Instance.Id,
+                            progress,
+                            cts.Token);
+                    }, cts.Token);
 
                     var results = _context.CheckResults
                         .Where(cr => cr.CheckId == _lastCheck.Id)
@@ -177,7 +191,6 @@ namespace PlagiarismGuard.Pages
                         {
                             SourceNo = index + 1,
                             SourceName = _context.Documents.First(d => d.Id == r.SourceDocumentId).FileName,
-                            Excerpt = r.MatchedText,
                             Similarity = $"{r.Similarity * 100:F2}%"
                         });
                         ProgressBar.Value = plagiarismPercentage;
@@ -206,15 +219,24 @@ namespace PlagiarismGuard.Pages
                         LinkDataGrid.Visibility = Visibility.Collapsed;
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    CustomMessageBox.Show("Проверка была отменена.", "Отмена", MessageType.Information, Window.GetWindow(this));
+                    _lastCheck = null;
+                    SourceDataGrid.ItemsSource = null;
+                    LinkDataGrid.ItemsSource = null;
+                    LinkDataGrid.Visibility = Visibility.Collapsed;
+                    ProgressBar.Value = 0;
+                    TextBlock.Text = "Проверка отменена";
+                }
+                catch (Exception ex)
+                {
+                    CustomMessageBox.Show($"Ошибка при проверке: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageType.Error, Window.GetWindow(this));
+                }
                 finally
                 {
-                    System.Diagnostics.Debug.WriteLine("Closing ProgressWindow");
                     Application.Current.Dispatcher.Invoke(() => progressWindow.Close());
                 }
-            }
-            catch (Exception ex)
-            {
-                CustomMessageBox.Show($"Ошибка при проверке: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageType.Error, Window.GetWindow(this));
             }
             finally
             {
@@ -244,6 +266,34 @@ namespace PlagiarismGuard.Pages
                 .ToList();
 
             _reportGenerator.GeneratePlagiarismReport(_lastCheck, results, linkResults);
+        }
+
+        private void ViewMatchButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.DataContext is not null)
+            {
+                var selectedItem = button.DataContext;
+                var sourceDocumentId = (int)selectedItem.GetType().GetProperty("SourceDocumentId").GetValue(selectedItem);
+                var matchedText = (string)selectedItem.GetType().GetProperty("MatchedText").GetValue(selectedItem);
+
+                OpenComparisonWindow(sourceDocumentId, matchedText);
+            }
+        }
+
+        private void OpenComparisonWindow(int sourceDocumentId, string matchedText)
+        {
+            var sourceDocumentText = _context.DocumentTexts
+                .FirstOrDefault(dt => dt.DocumentId == sourceDocumentId)?.TextContent;
+            var checkedDocumentText = DocumentTextBox.Text;
+
+            if (string.IsNullOrEmpty(sourceDocumentText))
+            {
+                CustomMessageBox.Show("Не удалось загрузить текст документа с совпадением.", "Ошибка", MessageType.Error, Window.GetWindow(this));
+                return;
+            }
+
+            var comparisonWindow = new ComparisonWindow(Window.GetWindow(this), checkedDocumentText, sourceDocumentText, matchedText);
+            comparisonWindow.ShowDialog();
         }
     }
     
