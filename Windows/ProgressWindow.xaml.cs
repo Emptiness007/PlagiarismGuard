@@ -24,5 +24,9 @@ namespace PlagiarismGuard.Windows
             InitializeComponent();
             Owner = owner;
         }
+        public void UpdateProgress(string message)
+        {
+            ProgressText.Text = message;
+        }
     }
 }

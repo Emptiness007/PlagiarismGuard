@@ -131,11 +131,11 @@ namespace PlagiarismGuard.Pages
 
                     _currentDocumentId = document.Id;
                     DocumentTextBox.Text = text;
-                    CustomMessageBox.Show(Window.GetWindow(this), "Документ успешно загружен в базу данных!", "Успех", MessageType.Information);
+                    CustomMessageBox.Show("Документ успешно загружен в базу данных!", "Успех", MessageType.Information, Window.GetWindow(this));
                 }
                 catch (Exception ex)
                 {
-                    CustomMessageBox.Show(Window.GetWindow(this), $"Ошибка при обработке документа: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageType.Error);
+                    CustomMessageBox.Show($"Ошибка при обработке документа: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageType.Error, Window.GetWindow(this));
                 }
             }
         }
@@ -147,7 +147,7 @@ namespace PlagiarismGuard.Pages
                 string textToCheck = DocumentTextBox.Text;
                 if (string.IsNullOrEmpty(textToCheck))
                 {
-                    CustomMessageBox.Show(Window.GetWindow(this), "Текст для проверки пуст!", "Предупреждение", MessageType.Warning);
+                    CustomMessageBox.Show("Текст для проверки пуст!", "Предупреждение", MessageType.Warning, Window.GetWindow(this));
                     return;
                 }
 
@@ -158,7 +158,6 @@ namespace PlagiarismGuard.Pages
                 try
                 {
                     System.Diagnostics.Debug.WriteLine("Starting plagiarism check");
-                    // Выполняем проверку в фоновом потоке
                     await Task.Run(async () =>
                     {
                         _lastCheck = await _plagiarismChecker.PerformCheckTextAsync(textToCheck, _currentDocumentId, CurrentUser.Instance.Id);
@@ -215,7 +214,7 @@ namespace PlagiarismGuard.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show(Window.GetWindow(this), $"Ошибка при проверке: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageType.Error);
+                CustomMessageBox.Show($"Ошибка при проверке: {ex.Message}\nInner Exception: {ex.InnerException?.Message}", "Ошибка", MessageType.Error, Window.GetWindow(this));
             }
             finally
             {
@@ -233,7 +232,7 @@ namespace PlagiarismGuard.Pages
         {
             if (_lastCheck == null)
             {
-                CustomMessageBox.Show(Window.GetWindow(this), "Сначала выполните проверку!", "Предупреждение", MessageType.Warning);
+                CustomMessageBox.Show("Сначала выполните проверку!", "Предупреждение", MessageType.Warning, Window.GetWindow(this));
                 return;
             }
 

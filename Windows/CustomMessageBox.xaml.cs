@@ -24,10 +24,10 @@ namespace PlagiarismGuard.Windows
         public string Title { get; set; }
         public MessageType Type { get; set; }
 
-        public CustomMessageBox(Window owner, string message, string title, MessageType type)
+        public CustomMessageBox(string message, string title, MessageType type, Window owner = null)
         {
             InitializeComponent();
-            Owner = owner;
+            Owner = owner ?? Application.Current.MainWindow; // Используем активное окно, если owner не указан
             Message = message;
             TitleText.Text = title;
             Type = type;
@@ -43,7 +43,7 @@ namespace PlagiarismGuard.Windows
                 MessageType.Error => "pack://application:,,,/Image/Error.png",
                 MessageType.Warning => "pack://application:,,,/Image/Warning.png",
                 MessageType.Information => "pack://application:,,,/Image/Info.png",
-                _ => "pack://application:,,,/Images/Info.png"
+                _ => "pack://application:,,,/Image/Info.png"
             };
             IconImage.Source = new BitmapImage(new Uri(iconPath));
         }
@@ -54,10 +54,20 @@ namespace PlagiarismGuard.Windows
             Close();
         }
 
-        public static void Show(Window owner, string message, string title, MessageType type)
+        public static void Show(string message, string title, MessageType type, Window owner = null)
         {
-            var messageBox = new CustomMessageBox(owner, message, title, type);
-            messageBox.ShowDialog();
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    var messageBox = new CustomMessageBox(message, title, type, owner);
+                    messageBox.ShowDialog();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка в CustomMessageBox.Show: {ex.Message}");
+                }
+            });
         }
     }
 }

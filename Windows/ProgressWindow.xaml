@@ -16,8 +16,8 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Text="Проверка документа..." FontFamily="/Fonts/#Anonymous Pro" FontSize="16" 
-                   Margin="10" HorizontalAlignment="Center"/>
+        <TextBlock x:Name="ProgressText" Grid.Row="0" Text="Проверка документа..." FontFamily="/Fonts/#Anonymous Pro" FontSize="16" 
+                   Margin="10" HorizontalAlignment="Center" TextWrapping="Wrap"/>
         <ProgressBar Grid.Row="1" IsIndeterminate="True" Height="10" Margin="10,0,10,20">
             <ProgressBar.Foreground>
                 <SolidColorBrush Color="#636AE8"/>

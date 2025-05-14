@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PlagiarismGuard.Windows"
         mc:Ignorable="d"
-        Height="200" Width="300"
+        SizeToContent="Height" MaxHeight="400" Width="300"
         WindowStyle="None" ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False" BorderThickness="1" BorderBrush="#636AE8">
     <Window.Resources>

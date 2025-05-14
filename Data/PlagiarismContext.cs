@@ -23,7 +23,10 @@ namespace PlagiarismGuard.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseMySql(_connectionString, new MySqlServerVersion(new Version(8, 0, 11)));
+            optionsBuilder.UseMySql(
+                    _connectionString, new MySqlServerVersion(new Version(8, 0, 11)),
+                    mysqlOptions => mysqlOptions.EnableStringComparisonTranslations()
+                );
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

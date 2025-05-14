@@ -43,7 +43,7 @@ namespace PlagiarismGuard.Services
 
                 if (isDoc)
                 {
-                    CustomMessageBox.Show(Window.GetWindow(new MainWindow(CurrentUser.Instance.Id)), "Формат .doc не поддерживается библиотекой Xceed.Words.NET. Отчет будет сохранен в формате .docx.",
+                    CustomMessageBox.Show("Формат .doc не поддерживается библиотекой Xceed.Words.NET. Отчет будет сохранен в формате .docx.",
                         "Предупреждение", MessageType.Information);
                     filePath = Path.ChangeExtension(filePath, ".docx");
                 }
@@ -206,11 +206,11 @@ namespace PlagiarismGuard.Services
                     doc.Save();
                 }
 
-                CustomMessageBox.Show(Window.GetWindow(new MainWindow(CurrentUser.Instance.Id)), $"Отчет успешно сохранен в {filePath}", "Успех", MessageType.Information);
+                CustomMessageBox.Show( $"Отчет успешно сохранен в {filePath}", "Успех", MessageType.Information);
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show(Window.GetWindow(new MainWindow(CurrentUser.Instance.Id)), $"Ошибка при создании отчета: {ex.Message}\nПодробности: {ex.InnerException?.Message ?? "Нет дополнительной информации"}",
+                CustomMessageBox.Show( $"Ошибка при создании отчета: {ex.Message}\nПодробности: {ex.InnerException?.Message ?? "Нет дополнительной информации"}",
                     "Ошибка", MessageType.Error);
             }
         }

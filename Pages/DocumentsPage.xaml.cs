@@ -19,6 +19,8 @@ namespace PlagiarismGuard.Pages
         private readonly PlagiarismContext _context;
         private readonly TextExtractorService _textExtractor;
         private readonly PlagiarismCheckService _plagiarismChecker;
+        private string _searchQuery = string.Empty;
+        private int _sortOption = 0;
 
         public DocumentsPage(PlagiarismContext context, TextExtractorService textExtractor, PlagiarismCheckService plagiarismChecker)
         {
@@ -33,77 +35,135 @@ namespace PlagiarismGuard.Pages
 
         private void LoadDocuments()
         {
-            if (CurrentUser.Instance.Role == "admin")
+            IQueryable<Document> query = IsAdmin
+                ? _context.Documents.Include(d => d.User)
+                : _context.Documents.Include(d => d.User).Where(d => d.UserId == CurrentUser.Instance.Id);
+
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
             {
-                var documents = _context.Documents
-                    .Include(d => d.User)
-                    .ToList();
-                DocumentsDataGrid.ItemsSource = documents;
+                query = query.Where(d => d.FileName.ToLower().Contains(_searchQuery.ToLower(), StringComparison.OrdinalIgnoreCase));
             }
-            else
+
+            query = _sortOption switch
             {
-                var documents = _context.Documents
-                    .Include(d => d.User)
-                    .Where(d => d.UserId == CurrentUser.Instance.Id)
-                    .ToList();
-                DocumentsDataGrid.ItemsSource = documents;
-                UploadButton.Visibility = Visibility.Collapsed;
-            }
+                1 => query.OrderByDescending(d => d.UploadedAt),
+                2 => query.OrderBy(d => d.UploadedAt),
+                _ => query
+            };
+
+            DocumentsDataGrid.ItemsSource = query.ToList();
+        }
+        private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            _searchQuery = SearchTextBox.Text.Trim();
+            LoadDocuments();
         }
 
-        private void UploadButton_Click(object sender, RoutedEventArgs e)
+        private void SortComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _sortOption = SortComboBox.SelectedIndex;
+            LoadDocuments();
+        }
+
+        private async void UploadButton_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Filter = "Word Documents (*.docx)|*.docx|PDF Files (*.pdf)|*.pdf"
+                Filter = "Word Documents (*.docx)|*.docx|PDF Files (*.pdf)|*.pdf",
+                Multiselect = true
             };
-            if (openFileDialog.ShowDialog() == true)
+
+            if (openFileDialog.ShowDialog() != true)
+                return;
+
+            string[] filePaths = openFileDialog.FileNames;
+            if (filePaths.Length == 0)
+                return;
+
+            var progressWindow = new ProgressWindow(Window.GetWindow(this));
+            progressWindow.Show();
+            int totalFiles = filePaths.Length;
+            int processedFiles = 0;
+            var errors = new List<string>();
+            var successes = new List<string>();
+
+            foreach (var filePath in filePaths)
             {
-                string filePath = openFileDialog.FileName;
                 string fileName = Path.GetFileName(filePath);
                 string format = Path.GetExtension(filePath).ToLower().TrimStart('.');
 
                 try
                 {
-                    byte[] fileContent = File.ReadAllBytes(filePath);
-                    string text = _textExtractor.ExtractText(fileContent, format);
-
-                    if (_plagiarismChecker.DocumentExists(text))
+                    var result = await Task.Run(() =>
                     {
-                        CustomMessageBox.Show(Window.GetWindow(this), "Документ с таким содержимым уже существует в системе!", "Предупреждение", MessageType.Warning);
-                        return;
-                    }
+                        byte[] fileContent = File.ReadAllBytes(filePath);
+                        string text = _textExtractor.ExtractText(fileContent, format);
 
-                    var document = new Models.Document
+                        return (Success: true, Message: "", Document: new Models.Document
+                        {
+                            UserId = CurrentUser.Instance.Id,
+                            FileName = fileName,
+                            FileContent = fileContent,
+                            FileSize = fileContent.Length,
+                            UploadedAt = DateTime.Now,
+                            Format = format
+                        }, Text: text);
+                    });
+
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        UserId = CurrentUser.Instance.Id,
-                        FileName = fileName,
-                        FileContent = fileContent,
-                        FileSize = fileContent.Length,
-                        UploadedAt = DateTime.Now,
-                        Format = format
-                    };
-                    _context.Documents.Add(document);
-                    _context.SaveChanges();
+                        processedFiles++;
+                        progressWindow.UpdateProgress($"Загружено {processedFiles} из {totalFiles} документов");
 
-                    var documentText = new DocumentText
-                    {
-                        DocumentId = document.Id,
-                        TextContent = text,
-                        TextHash = _plagiarismChecker.ComputeTextHash(text),
-                        ProcessedAt = DateTime.Now
-                    };
-                    _context.DocumentTexts.Add(documentText);
-                    _context.SaveChanges();
+                        if (_plagiarismChecker.DocumentExists(result.Text))
+                        {
+                            errors.Add($"Документ '{fileName}' уже существует в системе!");
+                            return;
+                        }
 
-                    CustomMessageBox.Show(Window.GetWindow(this), "Документ успешно загружен в базу данных!", "Успех", MessageType.Information);
-                    LoadDocuments();
+                        _context.Documents.Add(result.Document);
+                        _context.SaveChanges();
+
+                        var documentText = new DocumentText
+                        {
+                            DocumentId = result.Document.Id,
+                            TextContent = result.Text,
+                            TextHash = _plagiarismChecker.ComputeTextHash(result.Text),
+                            ProcessedAt = DateTime.Now
+                        };
+                        _context.DocumentTexts.Add(documentText);
+                        _context.SaveChanges();
+
+                        successes.Add(fileName);
+                    });
                 }
                 catch (Exception ex)
                 {
-                    CustomMessageBox.Show(Window.GetWindow(this), $"Ошибка при загрузке документа: {ex.Message}", "Ошибка", MessageType.Error);
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        processedFiles++;
+                        progressWindow.UpdateProgress($"Загружено {processedFiles} из {totalFiles} документов");
+                        errors.Add($"Ошибка при загрузке '{fileName}': {ex.Message}");
+                    });
                 }
             }
+
+            await Application.Current.Dispatcher.InvokeAsync(() => progressWindow.Close());
+
+            if (successes.Any() && errors.Any())
+            {
+                CustomMessageBox.Show($"Успешно загружено {successes.Count} документов:\n{string.Join("\n", successes)}\n\nОшибки ({errors.Count}):\n{string.Join("\n", errors)}", "Результат загрузки", MessageType.Information, Window.GetWindow(this));
+            }
+            else if (successes.Any())
+            {
+                CustomMessageBox.Show($"Все документы ({successes.Count}) успешно загружены:\n{string.Join("\n", successes)}", "Успех", MessageType.Information, Window.GetWindow(this));
+            }
+            else
+            {
+                CustomMessageBox.Show($"Ни один документ не загружен. Ошибки:\n{string.Join("\n", errors)}", "Ошибка", MessageType.Error, Window.GetWindow(this));
+            }
+
+            LoadDocuments();
         }
 
         private void DownloadButton_Click(object sender, RoutedEventArgs e)
@@ -118,7 +178,7 @@ namespace PlagiarismGuard.Pages
                 {
                     if (CurrentUser.Instance.Role != "admin" && document.UserId != CurrentUser.Instance.Id)
                     {
-                        CustomMessageBox.Show(Window.GetWindow(this), "Вы можете скачивать только свои документы!", "Ошибка", MessageType.Error);
+                        CustomMessageBox.Show("Вы можете скачивать только свои документы!", "Ошибка", MessageType.Error, Window.GetWindow(this));
                         return;
                     }
 
@@ -134,11 +194,11 @@ namespace PlagiarismGuard.Pages
                         try
                         {
                             File.WriteAllBytes(saveFileDialog.FileName, document.FileContent);
-                            CustomMessageBox.Show(Window.GetWindow(this), "Документ успешно скачан!", "Успех", MessageType.Information);
+                            CustomMessageBox.Show("Документ успешно скачан!", "Успех", MessageType.Information, Window.GetWindow(this));
                         }
                         catch (Exception ex)
                         {
-                            CustomMessageBox.Show(Window.GetWindow(this), $"Ошибка при скачивании документа: {ex.Message}", "Ошибка", MessageType.Error);
+                            CustomMessageBox.Show($"Ошибка при скачивании документа: {ex.Message}", "Ошибка", MessageType.Error, Window.GetWindow(this));
                         }
                     }
                 }
@@ -214,7 +274,7 @@ namespace PlagiarismGuard.Pages
                     _context.Documents.Remove(document);
                     _context.SaveChanges();
 
-                    CustomMessageBox.Show(Window.GetWindow(this), "Документ успешно удален!", "Успех", MessageType.Information);
+                    CustomMessageBox.Show("Документ успешно удален!", "Успех", MessageType.Information, Window.GetWindow(this));
                     LoadDocuments();
                 }
             }

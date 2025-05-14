@@ -110,7 +110,7 @@ namespace PlagiarismGuard.Windows
                 _context.Users.Add(newUser);
                 _context.SaveChanges();
 
-                CustomMessageBox.Show(Window.GetWindow(this), "Регистрация успешна! Теперь вы можете войти.", "Успех", MessageType.Information);
+                CustomMessageBox.Show("Регистрация успешна! Теперь вы можете войти.", "Успех", MessageType.Information, Window.GetWindow(this));
 
                 var authWindow = new Authorization();
                 authWindow.Show();

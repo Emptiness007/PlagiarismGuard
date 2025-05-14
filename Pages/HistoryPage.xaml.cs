@@ -68,7 +68,7 @@ namespace PlagiarismGuard.Pages
 
                 if (check == null)
                 {
-                    CustomMessageBox.Show(Window.GetWindow(this), "Проверка не найдена!", "Ошибка", MessageType.Error);
+                    CustomMessageBox.Show("Проверка не найдена!", "Ошибка", MessageType.Error, Window.GetWindow(this));
                     return;
                 }
 

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PlagiarismGuard"
         mc:Ignorable="d"
-        Title="Антиплагиат" Height="500" Width="850" MinHeight="500" MinWidth="850" WindowStartupLocation="CenterScreen">
+        Title="Антиплагиат" Height="500" Width="900" MinHeight="500" MinWidth="900" WindowStartupLocation="CenterScreen">
 
     <Grid>
         <Grid.Resources>
@@ -38,7 +38,7 @@
                 Background="White" BorderThickness="0.5" CornerRadius="10" BorderBrush="#E0E0E0"
                 Visibility="Collapsed" Margin="0,10,0,0">
             <StackPanel Margin="10">
-                <TextBlock x:Name="UsernameText" Text="Добро пожаловать," FontFamily="/Fonts/#Anonymous Pro" FontSize="14" FontWeight="SemiBold" Margin="0,10,0,15" Foreground="#333333"/>
+                <TextBlock x:Name="UsernameText" Text="Добро пожаловать," FontFamily="/Fonts/#Anonymous Pro" FontSize="14" FontWeight="SemiBold" Margin="0,10,0,15" Foreground="#333333" TextWrapping="Wrap"/>
                 <TextBlock x:Name="CheckPageText" Text="Проверка" Style="{StaticResource MenuItemStyle}" MouseLeftButtonUp="CheckPageButton_Click"/>
                 <TextBlock x:Name="HistoryText" Text="История проверок" Style="{StaticResource MenuItemStyle}" MouseLeftButtonUp="HistoryButton_Click"/>
                 <TextBlock x:Name="DocumentsText" Text="Загруженные документы" Style="{StaticResource MenuItemStyle}" MouseLeftButtonUp="DocumentsButton_Click"/>

@@ -11,15 +11,15 @@ namespace PlagiarismGuard.Services
 {
     public class TextExtractorService
     {
-            public string ExtractText(byte[] fileContent, string format) 
+        public string ExtractText(byte[] fileContent, string format) 
+        { 
+            switch (format.ToLower())
             { 
-                switch (format.ToLower())
-                { 
-                    case "docx": return ExtractFromDocx(fileContent); 
-                    case "pdf": return ExtractFromPdf(fileContent); 
-                    default: throw new NotSupportedException("Формат файла не поддерживается"); 
-                } 
-            }
+                case "docx": return ExtractFromDocx(fileContent); 
+                case "pdf": return ExtractFromPdf(fileContent); 
+                default: throw new NotSupportedException("Формат файла не поддерживается"); 
+            } 
+        }
 
         private string ExtractFromDocx(byte[] fileContent)
         {
