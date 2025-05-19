@@ -69,7 +69,7 @@ namespace PlagiarismGuard.Services
                         .Font("Arial")
                         .FontSize(12);
                     infoPara.Append($"Дата проверки: {check.CheckedAt:dd.MM.yyyy HH:mm}\n")
-                           .Append($"Проверяемый документ: {_context.Documents.Where(x=> x.Id == check.DocumentId).First().FileName}\n")
+                           .Append($"Проверяемый документ: {_context.Documents.Where(x => x.Id == check.DocumentId).First().FileName}\n")
                            .Append($"Процент плагиата: {check.Similarity:F2}%")
                            .SpacingAfter(10);
 
@@ -87,14 +87,17 @@ namespace PlagiarismGuard.Services
                         var table = doc.AddTable(results.Count + 1, 4);
                         table.Design = TableDesign.None;
                         table.Alignment = Alignment.center;
-                        table.SetWidthsPercentage(new float[] { 5, 30, 45, 20 }, null);
 
                         // Заголовки таблицы
                         var headerRow = table.Rows[0];
-                        headerRow.Cells[0].Paragraphs[0].Append("№").Bold().Color(Color.White);
-                        headerRow.Cells[1].Paragraphs[0].Append("Источник").Bold().Color(Color.White);
-                        headerRow.Cells[2].Paragraphs[0].Append("Фрагмент").Bold().Color(Color.White);
-                        headerRow.Cells[3].Paragraphs[0].Append("Сходство").Bold().Color(Color.White);
+                        headerRow.Cells[0].Paragraphs[0].Append("№").Bold().Color(Color.Black);
+                        headerRow.Cells[1].Paragraphs[0].Append("Источник").Bold().Color(Color.Black);
+                        headerRow.Cells[2].Paragraphs[0].Append("Фрагмент").Bold().Color(Color.Black);
+                        headerRow.Cells[3].Paragraphs[0].Append("Сходство").Bold().Color(Color.Black);
+                        headerRow.Cells[0].FillColor = Color.LightGray;
+                        headerRow.Cells[1].FillColor = Color.LightGray;
+                        headerRow.Cells[2].FillColor = Color.LightGray;
+                        headerRow.Cells[3].FillColor = Color.LightGray;
                         foreach (var cell in headerRow.Cells)
                         {
                             cell.VerticalAlignment = VerticalAlignment.Center;
@@ -110,12 +113,15 @@ namespace PlagiarismGuard.Services
                                 _context.Documents.First(d => d.Id == result.SourceDocumentId).FileName
                             );
                             row.Cells[2].Paragraphs[0].Append(result.MatchedText);
-                            row.Cells[3].Paragraphs[0].Append($"{result.Similarity * 100:F2}%").Alignment = Alignment.center;
+                            row.Cells[3].Paragraphs[0].Append($"{result.Similarity:F2}%").Alignment = Alignment.center;
                             foreach (var cell in row.Cells)
                             {
                                 cell.VerticalAlignment = VerticalAlignment.Center;
                             }
                         }
+
+                        // Автоматическая подстройка ширины колонок
+                        table.AutoFit = AutoFit.Contents;
 
                         // Границы таблицы
                         table.SetBorder(TableBorderType.InsideH, new Border(BorderStyle.Tcbs_single, BorderSize.one, 0, Color.Black));
@@ -150,13 +156,15 @@ namespace PlagiarismGuard.Services
                         var linkTable = doc.AddTable(linkResults.Count + 1, 3);
                         linkTable.Design = TableDesign.None;
                         linkTable.Alignment = Alignment.center;
-                        linkTable.SetWidthsPercentage(new float[] { 5, 65, 30 }, null);
 
                         // Заголовки таблицы
                         var linkHeaderRow = linkTable.Rows[0];
-                        linkHeaderRow.Cells[0].Paragraphs[0].Append("№").Bold().Color(Color.White);
-                        linkHeaderRow.Cells[1].Paragraphs[0].Append("Ссылка").Bold().Color(Color.White);
-                        linkHeaderRow.Cells[2].Paragraphs[0].Append("Статус").Bold().Color(Color.White);
+                        linkHeaderRow.Cells[0].Paragraphs[0].Append("№").Bold().Color(Color.Black);
+                        linkHeaderRow.Cells[1].Paragraphs[0].Append("Ссылка").Bold().Color(Color.Black);
+                        linkHeaderRow.Cells[2].Paragraphs[0].Append("Статус").Bold().Color(Color.Black);
+                        linkHeaderRow.Cells[0].FillColor = Color.LightGray;
+                        linkHeaderRow.Cells[1].FillColor = Color.LightGray;
+                        linkHeaderRow.Cells[2].FillColor = Color.LightGray;
                         foreach (var cell in linkHeaderRow.Cells)
                         {
                             cell.VerticalAlignment = VerticalAlignment.Center;
@@ -176,6 +184,9 @@ namespace PlagiarismGuard.Services
                                 cell.VerticalAlignment = VerticalAlignment.Center;
                             }
                         }
+                        linkTable.SetColumnWidth(0, 50);
+                        // Автоматическая подстройка ширины колонок
+                        linkTable.AutoFit = AutoFit.Contents;
 
                         // Границы таблицы
                         linkTable.SetBorder(TableBorderType.InsideH, new Border(BorderStyle.Tcbs_single, BorderSize.one, 0, Color.Black));
@@ -196,13 +207,6 @@ namespace PlagiarismGuard.Services
                             .SpacingAfter(10);
                     }
 
-                    // Нижний колонтитул
-                    doc.AddFooters();
-                    var footer = doc.Footers.Odd;
-                    var footerPara = footer.InsertParagraph()
-                        .Font("Arial")
-                        .FontSize(10)
-                        .Alignment = Alignment.right;
 
                     doc.Save();
                 }

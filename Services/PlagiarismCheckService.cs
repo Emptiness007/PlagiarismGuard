@@ -2,6 +2,7 @@
 using PlagiarismGuard.Data;
 using PlagiarismGuard.Models;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -19,6 +20,7 @@ namespace PlagiarismGuard.Services
         private readonly HttpClient _httpClient;
         private const int MaxTextLength = 10000;
         private const int MinSentenceLength = 80;
+
         public PlagiarismCheckService(PlagiarismContext context)
         {
             _context = context;
@@ -63,84 +65,105 @@ namespace PlagiarismGuard.Services
                              _context.Documents.Any(d => d.Id == dt.DocumentId && d.IsUsedForPlagiarismCheck))
                 .ToList();
 
-            var results = new List<CheckResult>();
-            var linkResults = new List<LinkCheckResult>();
-            var matchedByDocument = new Dictionary<int, (List<string> MatchedFragments, List<double> Similarities)>();
-            var processedSentences = new HashSet<string>();
-
-            int totalSentences = sentences.Count;
+            var matchedByDocument = new ConcurrentDictionary<int, (List<string> MatchedFragments, List<double> Similarities)>();
+            var processedSentences = new ConcurrentBag<string>();
+            int totalSentences = sentences.Count; // Общее количество предложений в проверяемом документе
             int processedCount = 0;
+            object lockObj = new object();
 
-            foreach (var sentence in sentences)
+            // Множество для отслеживания уникальных совпадающих предложений
+            var uniqueMatchedSentences = new HashSet<string>();
+
+            await Task.Run(() =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (sentence.Length < MinSentenceLength)
+                Parallel.ForEach(sentences, new ParallelOptions { CancellationToken = cancellationToken }, sentence =>
                 {
-                    System.Diagnostics.Debug.WriteLine($"Пропущено короткое предложение: {sentence} (длина: {sentence.Length})");
-                    processedCount++;
-                    progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
-                    continue;
-                }
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                if (processedSentences.Contains(sentence))
-                {
-                    processedCount++;
-                    progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
-                    continue;
-                }
-
-                foreach (var refDoc in referenceDocs)
-                {
-                    if (string.IsNullOrEmpty(refDoc.TextContent))
-                        continue;
-
-                    var match = CalculateSimilarity(sentence, refDoc.TextContent);
-
-                    if (match != null)
+                    if (sentence.Length < MinSentenceLength)
                     {
-                        if (!matchedByDocument.ContainsKey(refDoc.DocumentId))
-                        {
-                            matchedByDocument[refDoc.DocumentId] = (new List<string>(), new List<double>());
-                        }
+                        Interlocked.Increment(ref processedCount);
+                        progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
+                        return;
+                    }
 
-                        if (!matchedByDocument[refDoc.DocumentId].MatchedFragments.Contains(match.Value.MatchedText))
+                    if (processedSentences.Contains(sentence))
+                    {
+                        Interlocked.Increment(ref processedCount);
+                        progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
+                        return;
+                    }
+
+                    var matches = new List<(int DocumentId, double Similarity, string MatchedText)>();
+
+                    foreach (var refDoc in referenceDocs)
+                    {
+                        if (string.IsNullOrEmpty(refDoc.TextContent))
+                            continue;
+
+                        var match = CalculateSimilarity(sentence, refDoc.TextContent);
+                        if (match != null)
                         {
-                            matchedByDocument[refDoc.DocumentId].MatchedFragments.Add(match.Value.MatchedText);
-                            matchedByDocument[refDoc.DocumentId].Similarities.Add(match.Value.Similarity);
+                            matches.Add((refDoc.DocumentId, match.Value.Similarity, match.Value.MatchedText));
+                        }
+                    }
+
+                    if (matches.Any())
+                    {
+                        var bestMatch = matches.OrderByDescending(m => m.Similarity).First();
+                        int bestDocId = bestMatch.DocumentId;
+
+                        matchedByDocument.GetOrAdd(bestDocId, _ => (new List<string>(), new List<double>()));
+
+                        lock (lockObj)
+                        {
+                            if (!matchedByDocument[bestDocId].MatchedFragments.Contains(bestMatch.MatchedText))
+                            {
+                                matchedByDocument[bestDocId].MatchedFragments.Add(bestMatch.MatchedText);
+                                matchedByDocument[bestDocId].Similarities.Add(bestMatch.Similarity);
+                                uniqueMatchedSentences.Add(sentence); // Уникальные совпадения
+                            }
                         }
 
                         processedSentences.Add(sentence);
-                        break;
                     }
-                }
 
-                processedCount++;
-                progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
+                    Interlocked.Increment(ref processedCount);
+                    progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
+                });
+            }, cancellationToken);
+
+            var results = new List<CheckResult>();
+            var linkResults = new List<LinkCheckResult>();
+
+            // Вычисление процентов для записи в базу данных
+            foreach (var kvp in matchedByDocument)
+            {
+                int docId = kvp.Key;
+                int matchedSentencesCount = kvp.Value.MatchedFragments.Count; // Совпадающие предложения с этим источником
+                float docPlagiarismPercentageForDB = (float)matchedSentencesCount / totalSentences * 100; // Процент для БД относительно проверяемого документа
+
+                results.Add(new CheckResult
+                {
+                    SourceDocumentId = docId,
+                    MatchedText = string.Join("; ", kvp.Value.MatchedFragments),
+                    Similarity = docPlagiarismPercentageForDB // Записываем процент относительно проверяемого документа
+                });
             }
 
+            // Общий процент плагиата для записи в БД
+            float overallPlagiarismPercentageForDB = (float)uniqueMatchedSentences.Count / totalSentences * 100;
+
+            // Проверка ссылок
             var links = ExtractLinks(inputText);
             linkResults.AddRange(await VerifyLinksAsync(links, sentences, progress, cancellationToken));
 
-            results.AddRange(matchedByDocument
-                .Where(kvp => kvp.Value.MatchedFragments.Any())
-                .Select(kvp => new CheckResult
-                {
-                    SourceDocumentId = kvp.Key,
-                    MatchedText = string.Join("; ", kvp.Value.MatchedFragments),
-                    Similarity = (float)kvp.Value.Similarities.Average()
-                }));
-
-            int totalInputLength = inputText.Length;
-            int totalMatchedLength = results.Sum(r => r.MatchedText.Length);
-            float plagiarismPercentage = totalInputLength > 0 ?
-                (float)totalMatchedLength / totalInputLength * 100 : 0;
-
+            // Сохранение результатов в базу данных
             var check = new Check
             {
                 DocumentId = documentId,
                 UserId = userId,
-                Similarity = plagiarismPercentage,
+                Similarity = overallPlagiarismPercentageForDB, // Общий процент для БД
                 CheckedAt = DateTime.Now
             };
 
@@ -226,7 +249,7 @@ namespace PlagiarismGuard.Services
                     {
                         Url = link,
                         IsMatchFound = false,
-                        Status = "Контент отсутствует"
+                        Status = "Не удалось извлечь контент"
                     };
                 }
 
@@ -333,7 +356,6 @@ namespace PlagiarismGuard.Services
 
             return latinRatio > 0.7 && hasEnglishWords;
         }
-
 
         private int LevenshteinDistance(string s, string t)
         {

@@ -56,8 +56,18 @@
                     <DataGrid x:Name="LinkDataGrid" Grid.Row="3" AutoGenerateColumns="False" CanUserAddRows="False" Style="{StaticResource RoundedDataGridStyle}" IsReadOnly="True" Margin="0,0,20,40" Visibility="Visible">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="№" Binding="{Binding LinkNo}" Width="40"/>
-                            <DataGridTextColumn Header="Ссылка" Binding="{Binding Url}" Width="*"/>
-                            <DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="150"/>
+                            <DataGridTemplateColumn Header="Ссылка" Width="*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock>
+                                            <Hyperlink NavigateUri="{Binding Url}" RequestNavigate="Hyperlink_RequestNavigate">
+                                                <TextBlock Text="{Binding Url}"/>
+                                            </Hyperlink>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="250"/>
                         </DataGrid.Columns>
                     </DataGrid>
                     <Button Click="GenerateReportButton_Click" Grid.Row="3" Margin="0,0,20,5" Content="Отчёт" Style="{StaticResource ButtonStyle}" Width="90" VerticalAlignment="Bottom" HorizontalAlignment="Right"/>

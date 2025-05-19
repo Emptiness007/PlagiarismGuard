@@ -19,9 +19,9 @@
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
             <Button x:Name="UploadButton" Content="Загрузить документ" Style="{StaticResource ButtonStyle}" Width="150" Margin="0,0,10,0" Click="UploadButton_Click"/>
-            <TextBox x:Name="SearchTextBox" Width="200"  Margin="10,0,0,0"  FontSize="14" TextChanged="SearchTextBox_TextChanged" HorizontalAlignment="Right" Style="{StaticResource RoundedTextBoxStyle}" />
+            <TextBox x:Name="SearchTextBox" Width="200" Height="35"  Margin="10,0,0,0"  FontSize="14" TextChanged="SearchTextBox_TextChanged" HorizontalAlignment="Right" Style="{StaticResource RoundedTextBoxStyle}" />
 
-            <ComboBox x:Name="SortComboBox" Width="150" Height="40" FontFamily="/Fonts/#Anonymous Pro" FontSize="14" Style="{StaticResource RoundedComboBoxStyle}"
+            <ComboBox x:Name="SortComboBox" Width="150" Height="35" FontFamily="/Fonts/#Anonymous Pro" FontSize="14" Style="{StaticResource RoundedComboBoxStyle}"
                       SelectionChanged="SortComboBox_SelectionChanged" VerticalContentAlignment="Center" Margin="10,0,0,0">
                 <ComboBoxItem Content="По умолчанию"/>
                 <ComboBoxItem Content="Сначала новые"/>
