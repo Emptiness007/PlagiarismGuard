@@ -2,7 +2,9 @@
 using Microsoft.Extensions.Configuration;
 using MySql.Data.MySqlClient;
 using PlagiarismGuard.Models;
+using PlagiarismGuard.Services;
 using PlagiarismGuard.Windows;
+using System.Windows;
 
 namespace PlagiarismGuard.Data
 {
@@ -20,6 +22,7 @@ namespace PlagiarismGuard.Data
             try
             {
                 Database.EnsureCreated();
+                EnsureAdminUser();
             }
             catch (MySqlException)
             {
@@ -84,6 +87,28 @@ namespace PlagiarismGuard.Data
             }
         }
 
+        private void EnsureAdminUser()
+        {
+            if (!Users.Any(u => u.Role == "admin"))
+            {
+                var adminUser = new User
+                {
+                    Username = "admin",
+                    Role = "admin",
+                    Email = "",
+                    CreatedAt = DateTime.Now
+                };
+
+                string generatedPassword = adminUser.GeneratePass();
+                adminUser.PasswordHash = PasswordHelper.HashPassword(generatedPassword);
+
+                Users.Add(adminUser);
+                SaveChanges();
+
+                CustomMessageBox.Show(
+                    $"Создан пользователь администратора.\nЛогин: admin\nПароль: {generatedPassword}\nСохраните эти данные для входа!", "Успех", CustomMessageBox.MessageType.Information);
+            }
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
