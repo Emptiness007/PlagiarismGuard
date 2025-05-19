@@ -7,6 +7,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using static PlagiarismGuard.Windows.CustomMessageBox;
 
 namespace PlagiarismGuard
 {
@@ -45,12 +46,14 @@ namespace PlagiarismGuard
             if (CurrentUser.Instance.Role == "admin")
             {
                 UsersText.Visibility = Visibility.Visible;
+                DatabaseText.Visibility = Visibility.Visible;
                 ImportButton.Visibility = Visibility.Collapsed;
                 CheckPageText.Visibility = Visibility.Collapsed;
             }
             else
             {
                 UsersText.Visibility = Visibility.Collapsed;
+                DatabaseText.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -65,6 +68,7 @@ namespace PlagiarismGuard
             HistoryText.Tag = null;
             DocumentsText.Tag = null;
             UsersText.Tag = null;
+            DatabaseText.Tag = null;
 
             CheckPageText.Tag = "Active";
             MainFrame.Navigate(new CheckPage(_context, _textExtractor, _plagiarismChecker, _reportGeneratorService));
@@ -77,6 +81,7 @@ namespace PlagiarismGuard
             CheckPageText.Tag = null;
             DocumentsText.Tag = null;
             UsersText.Tag = null;
+            DatabaseText.Tag = null;
 
             HistoryText.Tag = "Active";
             MainFrame.Navigate(new HistoryPage(_context, _reportGeneratorService));
@@ -89,6 +94,7 @@ namespace PlagiarismGuard
             HistoryText.Tag = null;
             CheckPageText.Tag = null;
             UsersText.Tag = null;
+            DatabaseText.Tag = null;
 
             DocumentsText.Tag = "Active";
             MainFrame.Navigate(new DocumentsPage(_context, _textExtractor, _plagiarismChecker));
@@ -101,9 +107,36 @@ namespace PlagiarismGuard
             HistoryText.Tag = null;
             CheckPageText.Tag = null;
             DocumentsText.Tag = null;
+            DatabaseText.Tag = null;
 
             UsersText.Tag = "Active";
             MainFrame.Navigate(new UsersPage(_context));
+            isSidebarOpen = false;
+            Sidebar.Visibility = Visibility.Collapsed;
+        }
+
+        private void DatabaseButton_Click(object sender, RoutedEventArgs e)
+        {
+            HistoryText.Tag = null;
+            CheckPageText.Tag = null;
+            DocumentsText.Tag = null;
+            UsersText.Tag = null;
+            DatabaseText.Tag = "Active";
+
+            var configWindow = new DatabaseConfigWindow();
+            if (configWindow.ShowDialog() == true)
+            {
+                try
+                {
+                    ConfigurationManager.SaveConnectionString(configWindow.ConnectionString);
+                    CustomMessageBox.Show("Настройки базы данных успешно сохранены! Перезапустите приложение для применения изменений.", "Успех", MessageType.Information, Window.GetWindow(this));
+                }
+                catch (Exception ex)
+                {
+                    CustomMessageBox.Show($"Ошибка при сохранении настроек: {ex.Message}", "Ошибка", MessageType.Error, Window.GetWindow(this));
+                }
+            }
+
             isSidebarOpen = false;
             Sidebar.Visibility = Visibility.Collapsed;
         }

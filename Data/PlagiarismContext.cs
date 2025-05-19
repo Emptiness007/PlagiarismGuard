@@ -1,20 +1,18 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using PlagiarismGuard.Models;
+using PlagiarismGuard.Windows;
 
 namespace PlagiarismGuard.Data
 {
     public class PlagiarismContext : DbContext
     {
-        private readonly string _connectionString = "Server=127.0.0.1;Database=Plagiarism;Port=3307;user=root;pwd=;";
-
         public DbSet<User> Users { get; set; }
         public DbSet<Document> Documents { get; set; }
         public DbSet<DocumentText> DocumentTexts { get; set; }
         public DbSet<Check> Checks { get; set; }
         public DbSet<CheckResult> CheckResults { get; set; }
         public DbSet<LinkCheckResult> LinkCheckResults { get; set; }
-
 
         public PlagiarismContext()
         {
@@ -23,10 +21,36 @@ namespace PlagiarismGuard.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseMySql(
-                    _connectionString, new MySqlServerVersion(new Version(8, 0, 11)),
+            if (!optionsBuilder.IsConfigured)
+            {
+                string connectionString = GetConnectionString();
+                optionsBuilder.UseMySql(
+                    connectionString,
+                    new MySqlServerVersion(new Version(8, 0, 11)),
                     mysqlOptions => mysqlOptions.EnableStringComparisonTranslations()
                 );
+            }
+        }
+
+        private static string GetConnectionString()
+        {
+            string connectionString = ConfigurationManager.LoadConnectionString();
+
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                var configWindow = new DatabaseConfigWindow();
+                bool? result = configWindow.ShowDialog();
+
+                if (result != true)
+                {
+                    throw new InvalidOperationException("Настройка подключения к базе данных не завершена.");
+                }
+
+                connectionString = configWindow.ConnectionString;
+                ConfigurationManager.SaveConnectionString(connectionString);
+            }
+
+            return connectionString;
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -89,16 +113,6 @@ namespace PlagiarismGuard.Data
                 .HasForeignKey(cr => cr.SourceDocumentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-        }
-
-        public static string GetConnectionString()
-        {
-            IConfiguration configuration = new ConfigurationBuilder()
-                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .Build();
-
-            return configuration.GetConnectionString("PlagiarismDatabase");
         }
     }
 }

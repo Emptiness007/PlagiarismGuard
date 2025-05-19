@@ -43,6 +43,7 @@
                 <TextBlock x:Name="HistoryText" Text="История проверок" Style="{StaticResource MenuItemStyle}" MouseLeftButtonUp="HistoryButton_Click"/>
                 <TextBlock x:Name="DocumentsText" Text="Загруженные документы" Style="{StaticResource MenuItemStyle}" MouseLeftButtonUp="DocumentsButton_Click"/>
                 <TextBlock x:Name="UsersText" Text="Пользователи" Style="{StaticResource MenuItemStyle}" MouseLeftButtonUp="UsersButton_Click" Visibility="Collapsed"/>
+                <TextBlock x:Name="DatabaseText" Text="Настройка базы данных" Style="{StaticResource MenuItemStyle}" MouseLeftButtonUp="DatabaseButton_Click" Visibility="Collapsed"/>
                 <TextBlock Text="Выйти" Style="{StaticResource MenuItemStyle}" MouseLeftButtonUp="LogoutButton_Click" Margin="0,20,0,0"/>
             </StackPanel>
         </Border>

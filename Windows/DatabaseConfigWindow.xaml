@@ -1,0 +1,48 @@
+﻿<Window x:Class="PlagiarismGuard.Windows.DatabaseConfigWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PlagiarismGuard.Windows"
+        mc:Ignorable="d"
+        Title="Настройка подключения к базе данных" Height="450" Width="400"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+    <Window.Resources>
+        <ResourceDictionary Source="/Styles/Style.xaml"/>
+    </Window.Resources>
+    <Border Background="White" BorderBrush="#E0E0E0" BorderThickness="0.5" CornerRadius="10" Margin="10">
+        <Grid Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Label Content="Сервер:" FontFamily="/Fonts/#Anonymous Pro" FontSize="14" Grid.Row="0"/>
+            <TextBox x:Name="ServerTextBox" Style="{StaticResource RoundedTextBoxStyle}" Text="127.0.0.1" Grid.Row="1" Margin="0,0,0,10"/>
+
+            <Label Content="База данных:" FontFamily="/Fonts/#Anonymous Pro" FontSize="14" Grid.Row="2"/>
+            <TextBox x:Name="DatabaseTextBox" Style="{StaticResource RoundedTextBoxStyle}" Text="Plagiarism" Grid.Row="3" Margin="0,0,0,10"/>
+
+            <Label Content="Порт:" FontFamily="/Fonts/#Anonymous Pro" FontSize="14" Grid.Row="4"/>
+            <TextBox x:Name="PortTextBox" Style="{StaticResource RoundedTextBoxStyle}" Text="3307" Grid.Row="5" Margin="0,0,0,10"/>
+
+            <Label Content="Пользователь:" FontFamily="/Fonts/#Anonymous Pro" FontSize="14" Grid.Row="6"/>
+            <TextBox x:Name="UsernameTextBox" Style="{StaticResource RoundedTextBoxStyle}" Text="root" Grid.Row="7" Margin="0,0,0,10"/>
+
+            <Label Content="Пароль:" FontFamily="/Fonts/#Anonymous Pro" FontSize="14" Grid.Row="8"/>
+            <PasswordBox x:Name="PasswordBox" Style="{StaticResource RoundedPasswordBoxStyle}" Height="40" Grid.Row="8" Margin="0,0,0,10"/>
+
+            <StackPanel Grid.Row="8" Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+                <Button Content="Сохранить" Style="{StaticResource ButtonStyle}" Width="80" Margin="0,0,10,0" Click="SaveButton_Click"/>
+                <Button Content="Отмена" Style="{StaticResource ButtonStyle}" Width="80" Click="CancelButton_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
