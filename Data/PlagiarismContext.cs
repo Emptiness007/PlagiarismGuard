@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using MySql.Data.MySqlClient;
 using PlagiarismGuard.Models;
 using PlagiarismGuard.Windows;
 
@@ -16,7 +17,18 @@ namespace PlagiarismGuard.Data
 
         public PlagiarismContext()
         {
-            Database.EnsureCreated();
+            try
+            {
+                Database.EnsureCreated();
+            }
+            catch (MySqlException)
+            {
+                string configPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dbconfig.bin");
+                if (System.IO.File.Exists(configPath))
+                {
+                    System.IO.File.Delete(configPath);
+                }
+            }
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -34,24 +46,44 @@ namespace PlagiarismGuard.Data
 
         private static string GetConnectionString()
         {
-            string connectionString = ConfigurationManager.LoadConnectionString();
-
-            if (string.IsNullOrEmpty(connectionString))
+            while (true)
             {
-                var configWindow = new DatabaseConfigWindow();
-                bool? result = configWindow.ShowDialog();
+                string connectionString = ConfigurationManager.LoadConnectionString();
 
-                if (result != true)
+                if (string.IsNullOrEmpty(connectionString))
                 {
-                    throw new InvalidOperationException("Настройка подключения к базе данных не завершена.");
+                    var configWindow = new DatabaseConfigWindow();
+                    bool? result = configWindow.ShowDialog();
+
+                    if (result != true)
+                    {
+                        throw new InvalidOperationException("Настройка подключения к базе данных не завершена.");
+                    }
+
+                    connectionString = configWindow.ConnectionString;
+                    ConfigurationManager.SaveConnectionString(connectionString);
                 }
 
-                connectionString = configWindow.ConnectionString;
-                ConfigurationManager.SaveConnectionString(connectionString);
+                try
+                {
+                    using (var connection = new MySqlConnection(connectionString))
+                    {
+                        connection.Open();
+                    }
+                    return connectionString; 
+                }
+                catch (MySqlException)
+                {
+                    string configPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dbconfig.bin");
+                    if (System.IO.File.Exists(configPath))
+                    {
+                        System.IO.File.Delete(configPath);
+                    }
+                    continue;
+                }
             }
-
-            return connectionString;
         }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
