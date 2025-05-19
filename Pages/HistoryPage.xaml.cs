@@ -28,6 +28,7 @@ namespace PlagiarismGuard.Pages
     {
         private readonly PlagiarismContext _context;
         private readonly ReportGeneratorService _reportGenerator;
+        private int _sortOption = 0;
 
         public HistoryPage(PlagiarismContext context, ReportGeneratorService reportGenerator)
         {
@@ -39,23 +40,25 @@ namespace PlagiarismGuard.Pages
 
         private void LoadChecks()
         {
+            IQueryable<Check> query;
             if (CurrentUser.Instance.Role == "admin")
             {
-                var checks = _context.Checks
-                    .Include(c => c.Document)
-                    .Include(c => c.User)
-                    .ToList();
-                ChecksDataGrid.ItemsSource = checks;
+                query = _context.Checks.Include(c => c.Document).Include(c => c.User);
             }
             else
             {
-                var checks = _context.Checks
-                    .Include(c => c.Document)
-                    .Include(c => c.User)
-                    .Where(c => c.UserId == CurrentUser.Instance.Id)
-                    .ToList();
-                ChecksDataGrid.ItemsSource = checks;
+                query = _context.Checks.Include(c => c.Document).Include(c => c.User)
+                              .Where(c => c.UserId == CurrentUser.Instance.Id);
             }
+
+            query = _sortOption switch
+            {
+                1 => query.OrderByDescending(c => c.CheckedAt),
+                2 => query.OrderBy(c => c.CheckedAt),
+                _ => query
+            };
+
+            ChecksDataGrid.ItemsSource = query.ToList();
         }
 
         private void GenerateReportButton_Click(object sender, RoutedEventArgs e)
@@ -81,6 +84,12 @@ namespace PlagiarismGuard.Pages
 
                 _reportGenerator.GeneratePlagiarismReport(check, results, linkResults);
             }
+        }
+
+        private void SortComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _sortOption = SortComboBox.SelectedIndex;
+            LoadChecks();
         }
     }
 }

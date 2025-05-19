@@ -2,6 +2,7 @@
 using PlagiarismGuard.Models;
 using PlagiarismGuard.Windows;
 using System;
+using System.DirectoryServices;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -13,6 +14,8 @@ namespace PlagiarismGuard.Pages
     public partial class UsersPage : Page
     {
         private readonly PlagiarismContext _context;
+        private string _searchQuery = string.Empty;
+        private int _sortOption = 0;
 
         public UsersPage(PlagiarismContext context)
         {
@@ -24,8 +27,24 @@ namespace PlagiarismGuard.Pages
 
         private void LoadUsers()
         {
-            var users = _context.Users.ToList();
-            UsersDataGrid.ItemsSource = users;
+            var query = _context.Users.AsQueryable();
+
+            // Поиск по логину или почте
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                query = query.Where(u => u.Username.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                         u.Email.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Сортировка по дате создания
+            query = _sortOption switch
+            {
+                1 => query.OrderByDescending(u => u.CreatedAt),
+                2 => query.OrderBy(u => u.CreatedAt),
+                _ => query
+            };
+
+            UsersDataGrid.ItemsSource = query.ToList();
         }
 
         private void AddUserButton_Click(object sender, RoutedEventArgs e)
@@ -117,6 +136,17 @@ namespace PlagiarismGuard.Pages
                     LoadUsers();
                 }
             }
+        }
+        private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            _searchQuery = SearchTextBox.Text.Trim();
+            LoadUsers();
+        }
+
+        private void SortComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _sortOption = SortComboBox.SelectedIndex;
+            LoadUsers();
         }
     }
 }

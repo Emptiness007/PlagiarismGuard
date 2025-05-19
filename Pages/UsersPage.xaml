@@ -13,21 +13,38 @@
         </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="1" Margin="0,0,0,10" Orientation="Horizontal">
-            <Button x:Name="AddUserButton" Content="Добавить " Style="{StaticResource ButtonStyle}" Width="100" Click="AddUserButton_Click" />
-        </StackPanel>
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="AddUserButton" Grid.Column="0" Content="Добавить" Style="{StaticResource ButtonStyle}" 
+                    Width="100" Margin="0,0,10,0" Click="AddUserButton_Click"/>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                <TextBox x:Name="SearchTextBox" Width="200" Height="35" FontSize="14" TextChanged="SearchTextBox_TextChanged" 
+                         Style="{StaticResource RoundedTextBoxStyle}" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                <ComboBox x:Name="SortComboBox" Width="150" Height="35" FontFamily="/Fonts/#Anonymous Pro" FontSize="14" 
+                          Style="{StaticResource RoundedComboBoxStyle}" SelectionChanged="SortComboBox_SelectionChanged" 
+                          VerticalContentAlignment="Center">
+                    <ComboBoxItem Content="По умолчанию"/>
+                    <ComboBoxItem Content="Сначала новые"/>
+                    <ComboBoxItem Content="Сначала старые"/>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
 
         <DataGrid x:Name="UsersDataGrid" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Style="{StaticResource RoundedDataGridStyle}">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Имя пользователя" Binding="{Binding Username}" Width="150"/>
-                <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="200"/>
-                <DataGridTextColumn Header="Роль" Binding="{Binding Role}" Width="100"/>
-                <DataGridTextColumn Header="Дата создания" Binding="{Binding CreatedAt, StringFormat={}{0:dd.MM.yyyy HH:mm}}" Width="150"/>
-                <DataGridTemplateColumn Header="Действия" Width="100">
+                <DataGridTextColumn Header="Имя пользователя" Binding="{Binding Username}" Width="*"/>
+                <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="*"/>
+                <DataGridTextColumn Header="Роль" Binding="{Binding Role}" Width="*"/>
+                <DataGridTextColumn Header="Дата создания" Binding="{Binding CreatedAt, StringFormat={}{0:dd.MM.yyyy HH:mm}}" Width="*"/>
+                <DataGridTemplateColumn Header="Действия" Width="*">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Button Content="Удалить" Click="DeleteButton_Click" Tag="{Binding Id}" Style="{StaticResource ButtonStyle}" Margin="3"/>

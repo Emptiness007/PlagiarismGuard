@@ -120,7 +120,6 @@ namespace PlagiarismGuard.Services
                             }
                         }
 
-                        // Автоматическая подстройка ширины колонок
                         table.AutoFit = AutoFit.Contents;
 
                         // Границы таблицы
@@ -185,7 +184,6 @@ namespace PlagiarismGuard.Services
                             }
                         }
                         linkTable.SetColumnWidth(0, 50);
-                        // Автоматическая подстройка ширины колонок
                         linkTable.AutoFit = AutoFit.Contents;
 
                         // Границы таблицы

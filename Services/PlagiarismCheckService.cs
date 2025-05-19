@@ -67,11 +67,10 @@ namespace PlagiarismGuard.Services
 
             var matchedByDocument = new ConcurrentDictionary<int, (List<string> MatchedFragments, List<double> Similarities)>();
             var processedSentences = new ConcurrentBag<string>();
-            int totalSentences = sentences.Count; // Общее количество предложений в проверяемом документе
+            int totalSentences = sentences.Count;
             int processedCount = 0;
             object lockObj = new object();
 
-            // Множество для отслеживания уникальных совпадающих предложений
             var uniqueMatchedSentences = new HashSet<string>();
 
             await Task.Run(() =>
@@ -136,34 +135,30 @@ namespace PlagiarismGuard.Services
             var results = new List<CheckResult>();
             var linkResults = new List<LinkCheckResult>();
 
-            // Вычисление процентов для записи в базу данных
             foreach (var kvp in matchedByDocument)
             {
                 int docId = kvp.Key;
-                int matchedSentencesCount = kvp.Value.MatchedFragments.Count; // Совпадающие предложения с этим источником
-                float docPlagiarismPercentageForDB = (float)matchedSentencesCount / totalSentences * 100; // Процент для БД относительно проверяемого документа
+                int matchedSentencesCount = kvp.Value.MatchedFragments.Count;
+                float docPlagiarismPercentageForDB = (float)matchedSentencesCount / totalSentences * 100;
 
                 results.Add(new CheckResult
                 {
                     SourceDocumentId = docId,
                     MatchedText = string.Join("; ", kvp.Value.MatchedFragments),
-                    Similarity = docPlagiarismPercentageForDB // Записываем процент относительно проверяемого документа
+                    Similarity = docPlagiarismPercentageForDB
                 });
             }
 
-            // Общий процент плагиата для записи в БД
             float overallPlagiarismPercentageForDB = (float)uniqueMatchedSentences.Count / totalSentences * 100;
 
-            // Проверка ссылок
             var links = ExtractLinks(inputText);
             linkResults.AddRange(await VerifyLinksAsync(links, sentences, progress, cancellationToken));
 
-            // Сохранение результатов в базу данных
             var check = new Check
             {
                 DocumentId = documentId,
                 UserId = userId,
-                Similarity = overallPlagiarismPercentageForDB, // Общий процент для БД
+                Similarity = overallPlagiarismPercentageForDB,
                 CheckedAt = DateTime.Now
             };
 
