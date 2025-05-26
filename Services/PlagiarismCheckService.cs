@@ -120,7 +120,7 @@ namespace PlagiarismGuard.Services
                             {
                                 matchedByDocument[bestDocId].MatchedFragments.Add(bestMatch.MatchedText);
                                 matchedByDocument[bestDocId].Similarities.Add(bestMatch.Similarity);
-                                uniqueMatchedSentences.Add(sentence); // Уникальные совпадения
+                                uniqueMatchedSentences.Add(sentence);
                             }
                         }
 

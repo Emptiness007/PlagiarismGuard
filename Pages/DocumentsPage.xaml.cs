@@ -29,6 +29,7 @@ namespace PlagiarismGuard.Pages
             _textExtractor = textExtractor;
             _plagiarismChecker = plagiarismChecker;
             PlagiarismCheckColumn.Visibility = IsAdmin ? Visibility.Visible : Visibility.Collapsed;
+            UploadButton.Visibility = IsAdmin ? Visibility.Visible :Visibility.Collapsed;
 
             LoadDocuments();
         }

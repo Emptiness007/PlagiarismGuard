@@ -112,18 +112,6 @@ namespace PlagiarismGuard.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<User>()
-                .Property(u => u.Role)
-                .HasConversion<string>()
-                .HasColumnType("varchar(5)")
-                .HasDefaultValue("user")
-                .IsRequired();
-
-            modelBuilder.Entity<Document>()
-                .Property(d => d.Format)
-                .HasConversion<string>()
-                .HasColumnType("varchar(4)")
-                .IsRequired();
 
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username)
@@ -168,8 +156,12 @@ namespace PlagiarismGuard.Data
                 .HasOne(cr => cr.SourceDocument)
                 .WithMany()
                 .HasForeignKey(cr => cr.SourceDocumentId)
-                .OnDelete(DeleteBehavior.Restrict);
-
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<LinkCheckResult>()
+                .HasOne(lcr => lcr.Check)
+                .WithMany()
+                .HasForeignKey(lcr => lcr.CheckId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

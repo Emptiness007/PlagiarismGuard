@@ -150,6 +150,12 @@ namespace PlagiarismGuard.Pages
                     CustomMessageBox.Show("Текст для проверки пуст!", "Предупреждение", MessageType.Warning, Window.GetWindow(this));
                     return;
                 }
+                var mainWindow = Window.GetWindow(this);
+                if (mainWindow != null)
+                {
+                    mainWindow.IsEnabled = false;
+                }
+                MainGrid.IsEnabled = false;
 
                 CheckButton.IsEnabled = false;
                 using var cts = new CancellationTokenSource();
@@ -229,6 +235,7 @@ namespace PlagiarismGuard.Pages
                 finally
                 {
                     Application.Current.Dispatcher.Invoke(() => progressWindow.Close());
+                    MainGrid.IsEnabled = true;
                 }
             }
             finally

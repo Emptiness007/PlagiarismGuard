@@ -7,7 +7,6 @@ using System;
 using System.Linq;
 using System.Windows;
 using Microsoft.Extensions.Configuration;
-using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace PlagiarismGuard
 {
