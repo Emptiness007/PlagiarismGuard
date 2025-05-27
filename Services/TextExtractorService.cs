@@ -1,23 +1,22 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Text;
 using Xceed.Words.NET;
-using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Canvas.Parser;
+using System.Linq;
 using Xceed.Document.NET;
-using iText.Kernel.Pdf.Canvas.Parser.Listener;
 using System.Text.RegularExpressions;
 
 namespace PlagiarismGuard.Services
 {
     public class TextExtractorService
     {
-        public string ExtractText(byte[] fileContent, string format) 
-        { 
+        public string ExtractText(byte[] fileContent, string format)
+        {
             switch (format.ToLower())
-            { 
-                case "docx": return ExtractFromDocx(fileContent); 
-                default: throw new NotSupportedException("Формат файла не поддерживается"); 
-            } 
+            {
+                case "docx": return ExtractFromDocx(fileContent);
+                default: throw new NotSupportedException("Формат файла не поддерживается");
+            }
         }
 
         private string ExtractFromDocx(byte[] fileContent)
@@ -27,6 +26,13 @@ namespace PlagiarismGuard.Services
                 using (var stream = new MemoryStream(fileContent))
                 using (var doc = DocX.Load(stream))
                 {
+                    // 🧹 Удаляем все таблицы из документа
+                    var tables = doc.Tables.ToList();
+                    foreach (var table in tables)
+                    {
+                        table.Remove(); // удаляет таблицу и весь её текст
+                    }
+
                     StringBuilder text = new StringBuilder();
                     bool skipTitlePage = true;
                     int paragraphCount = 0;
@@ -39,13 +45,18 @@ namespace PlagiarismGuard.Services
 
                         paragraphCount++;
 
-                        if (IsHeading(paragraph))
+                        if (IsHeadingParagraph(paragraph))
                         {
-                            if (paragraph.StyleName != null && paragraph.StyleName.Equals("Heading 1", StringComparison.OrdinalIgnoreCase))
+                            if (paragraph.StyleName != null &&
+                                paragraph.StyleName.Equals("Heading 1", StringComparison.OrdinalIgnoreCase))
                             {
                                 skipTitlePage = false;
+                                continue;
                             }
-                            continue;
+                            else
+                            {
+                                continue; // игнорируем все заголовки
+                            }
                         }
 
                         if (IsCaption(paragraph))
@@ -54,19 +65,15 @@ namespace PlagiarismGuard.Services
                         if (skipTitlePage)
                         {
                             if (IsTitlePageContent(paragraph) || paragraphCount <= maxTitlePageParagraphs)
-                            {
                                 continue;
-                            }
                             else
-                            {
                                 skipTitlePage = false;
-                            }
                         }
 
                         if (paragraph.IsListItem)
                         {
-                            string listPrefix = GetListPrefix(paragraph);
-                            text.AppendLine($"{listPrefix} {paragraph.Text}");
+                            string prefix = GetListPrefix(paragraph);
+                            text.AppendLine($"{prefix} {paragraph.Text}");
                         }
                         else
                         {
@@ -83,66 +90,68 @@ namespace PlagiarismGuard.Services
             }
         }
 
-        private string GetListPrefix(Paragraph paragraph)
+
+        private static bool IsHeadingParagraph(Paragraph paragraph)
         {
-            if (!paragraph.IsListItem)
-                return string.Empty;
+            string style = paragraph.StyleName ?? "";
+            string text = paragraph.Text.Trim();
 
-            int level = (int)paragraph.IndentLevel;
-            string indent = new string(' ', level * 2);
-
-            switch (paragraph.ListItemType)
-            {
-                case ListItemType.Bulleted:
-                    return $"{indent}•";
-                case ListItemType.Numbered:
-                    return $"{indent}";
-                default:
-                    return $"{indent}*";
-            }
-        }
-
-
-        private bool IsHeading(Paragraph paragraph)
-        {
-            if (paragraph.StyleName != null &&
-                (paragraph.StyleName.StartsWith("Heading", StringComparison.OrdinalIgnoreCase) ||
-                 paragraph.StyleName.Contains("Заголовок", StringComparison.OrdinalIgnoreCase)))
-            {
+            // Стандартные стили заголовков
+            if (!string.IsNullOrEmpty(style) &&
+                (style.StartsWith("Heading", StringComparison.OrdinalIgnoreCase) ||
+                 style.StartsWith("Заголовок", StringComparison.OrdinalIgnoreCase)))
                 return true;
-            }
-            string trimmedText = paragraph.Text.Trim();
-            if (!string.IsNullOrEmpty(trimmedText) && !trimmedText.EndsWith(".") && trimmedText.Length > 2)
-            {
-                if (!paragraph.IsListItem && !IsCaption(paragraph))
-                {
-                    return true;
-                }
-            }
-            return false;
+
+            // Регулярка для многоуровневых заголовков: 1, 1.1, 2.3.4 и т.д.
+            if (Regex.IsMatch(text, @"^\d+(\.\d+)*[\.\)]?\s+.+$"))
+                return true;
+
+            // Ключевые слова-заголовки (точное сравнение)
+            string[] knownHeadings = {
+                "Введение",
+                "Заключение",
+                "Список использованных источников",
+                "Список литературы",
+                "Приложение",
+                "Библиография"
+            };
+
+            return knownHeadings.Any(h => string.Equals(h, text, StringComparison.OrdinalIgnoreCase));
         }
 
         private bool IsCaption(Paragraph paragraph)
         {
-            if (paragraph.StyleName != null &&
+            if (!string.IsNullOrEmpty(paragraph.StyleName) &&
                 paragraph.StyleName.Equals("Caption", StringComparison.OrdinalIgnoreCase))
-            {
                 return true;
-            }
 
-            string[] captionKeywords = { "ГЛАВА", "Глава", "Рисунок", "Таблица", "Figure", "Table", "Caption" };
-            if (captionKeywords.Any(keyword => paragraph.Text.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
-            return false;
+            string[] keywords = { "ГЛАВА", "Глава", "Рисунок", "Таблица", "Figure", "Table", "Caption" };
+            return keywords.Any(k => paragraph.Text.Contains(k, StringComparison.OrdinalIgnoreCase));
         }
-
 
         private bool IsTitlePageContent(Paragraph paragraph)
         {
-            string[] titlePageKeywords = { "Содержание", "Курсовая работа", "Дипломная работа", "Дипломный проект", "Курсовой проект", "учреждение", "ЗАДАНИЕ", "Пояснительная записка", "Министерство", "Факультет", "Кафедра", "Выполнил", "Проверил", "Оглавление" };
-            return titlePageKeywords.Any(keyword => paragraph.Text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+            string[] keywords = {
+                "Содержание", "Курсовая работа", "Дипломная работа", "Дипломный проект",
+                "Курсовой проект", "учреждение", "ЗАДАНИЕ", "Пояснительная записка",
+                "Министерство", "Факультет", "Кафедра", "Выполнил", "Проверил", "Оглавление"
+            };
+            return keywords.Any(k => paragraph.Text.Contains(k, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private string GetListPrefix(Paragraph paragraph)
+        {
+            if (!paragraph.IsListItem) return string.Empty;
+
+            int level = (int)paragraph.IndentLevel;
+            string indent = new string(' ', level * 2);
+
+            return paragraph.ListItemType switch
+            {
+                ListItemType.Bulleted => $"{indent}•",
+                ListItemType.Numbered => $"{indent}",
+                _ => $"{indent}*"
+            };
         }
     }
 }

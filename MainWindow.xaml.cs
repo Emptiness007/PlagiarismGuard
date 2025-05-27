@@ -26,6 +26,7 @@ namespace PlagiarismGuard
             _textExtractor = new TextExtractorService();
             _plagiarismChecker = new PlagiarismCheckService(_context);
             _reportGeneratorService = new ReportGeneratorService(_context);
+            ImportButton.Visibility = Visibility.Collapsed;
             CurrentUser.Instance.Id = userId;
             LoadUserData();
             ConfigureUIForRole();
@@ -69,6 +70,7 @@ namespace PlagiarismGuard
             DocumentsText.Tag = null;
             UsersText.Tag = null;
             DatabaseText.Tag = null;
+            ImportButton.Visibility = Visibility.Visible;
 
             CheckPageText.Tag = "Active";
             MainFrame.Navigate(new CheckPage(_context, _textExtractor, _plagiarismChecker, _reportGeneratorService));

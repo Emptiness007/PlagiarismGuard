@@ -18,8 +18,7 @@ namespace PlagiarismGuard.Services
     {
         private readonly PlagiarismContext _context;
         private readonly HttpClient _httpClient;
-        private const int MaxTextLength = 10000;
-        private const int MinSentenceLength = 80;
+        private const int MaxTextLength = 50000;
 
         public PlagiarismCheckService(PlagiarismContext context)
         {
@@ -56,9 +55,10 @@ namespace PlagiarismGuard.Services
 
             string inputTextHash = ComputeTextHash(inputText);
 
-            var sentences = Regex.Split(inputText, @"(?<=[.!?])\s+")
-                .Where(s => !string.IsNullOrWhiteSpace(s))
-                .ToList();
+            var links = ExtractLinks(inputText);
+            string cleanedText = RemoveLinks(inputText);
+
+            var (sentences, tableFragments) = ExtractTextAndTableFragments(cleanedText);
             var referenceDocs = _context.DocumentTexts
                 .Where(dt => dt.DocumentId != documentId &&
                              dt.TextHash != inputTextHash &&
@@ -66,30 +66,30 @@ namespace PlagiarismGuard.Services
                 .ToList();
 
             var matchedByDocument = new ConcurrentDictionary<int, (List<string> MatchedFragments, List<double> Similarities)>();
-            var processedSentences = new ConcurrentBag<string>();
-            int totalSentences = sentences.Count;
+            var processedFragments = new ConcurrentBag<string>();
+            int totalFragments = sentences.Count + tableFragments.Count;
             int processedCount = 0;
             object lockObj = new object();
 
-            var uniqueMatchedSentences = new HashSet<string>();
+            var uniqueMatchedFragments = new HashSet<string>();
 
             await Task.Run(() =>
             {
-                Parallel.ForEach(sentences, new ParallelOptions { CancellationToken = cancellationToken }, sentence =>
+                Parallel.ForEach(sentences.Concat(tableFragments), new ParallelOptions { CancellationToken = cancellationToken }, fragment =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    if (sentence.Length < MinSentenceLength)
+                    if (IsStandardPhrase(fragment) || IsNumericOrShort(fragment))
                     {
                         Interlocked.Increment(ref processedCount);
-                        progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
+                        progress?.Report($"Проверка документа: {(int)((double)processedCount / totalFragments * 100)}%");
                         return;
                     }
 
-                    if (processedSentences.Contains(sentence))
+                    if (processedFragments.Contains(fragment))
                     {
                         Interlocked.Increment(ref processedCount);
-                        progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
+                        progress?.Report($"Проверка документа: {(int)((double)processedCount / totalFragments * 100)}%");
                         return;
                     }
 
@@ -100,7 +100,7 @@ namespace PlagiarismGuard.Services
                         if (string.IsNullOrEmpty(refDoc.TextContent))
                             continue;
 
-                        var match = CalculateSimilarity(sentence, refDoc.TextContent);
+                        var match = CalculateSimilarity(fragment, refDoc.TextContent);
                         if (match != null)
                         {
                             matches.Add((refDoc.DocumentId, match.Value.Similarity, match.Value.MatchedText));
@@ -120,15 +120,15 @@ namespace PlagiarismGuard.Services
                             {
                                 matchedByDocument[bestDocId].MatchedFragments.Add(bestMatch.MatchedText);
                                 matchedByDocument[bestDocId].Similarities.Add(bestMatch.Similarity);
-                                uniqueMatchedSentences.Add(sentence);
+                                uniqueMatchedFragments.Add(fragment);
                             }
                         }
 
-                        processedSentences.Add(sentence);
+                        processedFragments.Add(fragment);
                     }
 
                     Interlocked.Increment(ref processedCount);
-                    progress?.Report($"Проверка документа: {(int)((double)processedCount / totalSentences * 100)}%");
+                    progress?.Report($"Проверка документа: {(int)((double)processedCount / totalFragments * 100)}%");
                 });
             }, cancellationToken);
 
@@ -138,8 +138,8 @@ namespace PlagiarismGuard.Services
             foreach (var kvp in matchedByDocument)
             {
                 int docId = kvp.Key;
-                int matchedSentencesCount = kvp.Value.MatchedFragments.Count;
-                float docPlagiarismPercentageForDB = (float)matchedSentencesCount / totalSentences * 100;
+                int matchedFragmentsCount = kvp.Value.MatchedFragments.Count;
+                float docPlagiarismPercentageForDB = (float)matchedFragmentsCount / totalFragments * 100;
 
                 results.Add(new CheckResult
                 {
@@ -149,10 +149,9 @@ namespace PlagiarismGuard.Services
                 });
             }
 
-            float overallPlagiarismPercentageForDB = (float)uniqueMatchedSentences.Count / totalSentences * 100;
+            float overallPlagiarismPercentageForDB = (float)uniqueMatchedFragments.Count / totalFragments * 100;
 
-            var links = ExtractLinks(inputText);
-            linkResults.AddRange(await VerifyLinksAsync(links, sentences, progress, cancellationToken));
+            linkResults.AddRange(await VerifyLinksAsync(links, sentences.Concat(tableFragments).ToList(), progress, cancellationToken));
 
             var check = new Check
             {
@@ -183,6 +182,96 @@ namespace PlagiarismGuard.Services
             return check;
         }
 
+        private (List<string> Sentences, List<string> TableFragments) ExtractTextAndTableFragments(string text)
+        {
+            var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            var sentences = new List<string>();
+            var tableFragments = new List<string>();
+            bool inTable = false;
+
+            foreach (var line in lines)
+            {
+                string trimmedLine = line.Trim();
+                if (string.IsNullOrWhiteSpace(trimmedLine))
+                    continue;
+
+                if (trimmedLine.StartsWith("Таблица", StringComparison.OrdinalIgnoreCase) ||
+                    trimmedLine.StartsWith("Table", StringComparison.OrdinalIgnoreCase))
+                {
+                    inTable = true;
+                    continue;
+                }
+
+                if (inTable)
+                {
+                    if (IsTableRow(trimmedLine))
+                    {
+                        var cells = trimmedLine.Split('|')
+                            .Select(cell => cell.Trim())
+                            .Where(cell => !string.IsNullOrWhiteSpace(cell) && !IsNumericOrShort(cell))
+                            .ToList();
+                        tableFragments.AddRange(cells);
+                    }
+                    else
+                    {
+                        inTable = false;
+                        var splitSentences = Regex.Split(trimmedLine, @"(?<=[.!?])\s+")
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .ToList();
+                        sentences.AddRange(splitSentences);
+                    }
+                }
+                else
+                {
+                    var splitSentences = Regex.Split(trimmedLine, @"(?<=[.!?])\s+")
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .ToList();
+                    sentences.AddRange(splitSentences);
+                }
+            }
+
+            return (sentences, tableFragments);
+        }
+
+        private bool IsTableRow(string text)
+        {
+            return text.Contains("|") && Regex.IsMatch(text, @"^[^|]+(?:\s*\|\s*[^|]+)*$");
+        }
+
+        private bool IsNumericOrShort(string text)
+        {
+            return Regex.IsMatch(text, @"^\d+$") ||
+                   text.Length <= 5 ||
+                   Regex.IsMatch(text, @"^[\d,.%]+$");
+        }
+
+        private bool IsStandardPhrase(string sentence)
+        {
+            string[] standardPhrases = { "на рисунке", "в таблице", "представлено", "иллюстрирует", "на схеме", "показано", "изображено", "описано" };
+            string[] standardPatterns = {
+                @"на рисунке\s+\d+",
+                @"в таблице\s+\d+",
+                @"схема\s+\d+",
+                @"рис\.\s+\d+",
+                @"табл\.\s+\d+",
+                @"таблица\s+\d+\s*–\s*[^\n]+"
+            };
+
+            if (standardPhrases.Any(phrase => sentence.ToLower().Contains(phrase)))
+                return true;
+
+            if (standardPatterns.Any(pattern => Regex.IsMatch(sentence, pattern, RegexOptions.IgnoreCase)))
+                return true;
+
+            return false;
+        }
+
+        private string RemoveLinks(string text)
+        {
+            var urlRegex = new Regex(@"(https?://[^\s""<>\[\]\{\}]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            return urlRegex.Replace(text, "");
+        }
+
         private (double Similarity, string MatchedText)? CalculateSimilarity(string text1, string text2)
         {
             if (string.IsNullOrEmpty(text1) || string.IsNullOrEmpty(text2))
@@ -196,11 +285,14 @@ namespace PlagiarismGuard.Services
 
             foreach (var sentence2 in sentences2)
             {
+                if (IsStandardPhrase(sentence2) || IsNumericOrShort(sentence2))
+                    continue;
+
                 int distance = LevenshteinDistance(text1, sentence2);
                 int maxLength = Math.Max(text1.Length, sentence2.Length);
                 double similarity = maxLength == 0 ? 0 : 1.0 - (double)distance / maxLength;
 
-                if (similarity > 0.8)
+                if (similarity > 0.7)
                 {
                     if (bestMatch == null || similarity > bestMatch.Value.Similarity)
                     {
@@ -346,10 +438,8 @@ namespace PlagiarismGuard.Services
             int latinCharCount = text.Count(c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
             double latinRatio = (double)latinCharCount / text.Length;
 
-            string[] commonEnglishWords = { "the", "and", "is", "in", "to", "of", "a", "for", "on", "with" };
-            bool hasEnglishWords = commonEnglishWords.Any(word => Regex.IsMatch(text, $@"\b{word}\b", RegexOptions.IgnoreCase));
 
-            return latinRatio > 0.7 && hasEnglishWords;
+            return latinRatio > 0.7;
         }
 
         private int LevenshteinDistance(string s, string t)
