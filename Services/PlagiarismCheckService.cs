@@ -18,7 +18,6 @@ namespace PlagiarismGuard.Services
     {
         private readonly PlagiarismContext _context;
         private readonly HttpClient _httpClient;
-        private const int MaxTextLength = 50000;
 
         public PlagiarismCheckService(PlagiarismContext context)
         {
@@ -186,14 +185,15 @@ namespace PlagiarismGuard.Services
 
         public bool IsStandardPhrase(string sentence)
         {
-            string[] standardPhrases = { "на рисунке", "в таблице", "представлено", "иллюстрирует", "на схеме", "показано", "изображено", "описано" };
+            string[] standardPhrases = { "на рисунке", "в таблице", "представлено", "представлены", "иллюстрирует", "на схеме", "показано", "изображено", "описано" };
             string[] standardPatterns = {
                 @"на рисунке\s+\d+",
                 @"в таблице\s+\d+",
                 @"схема\s+\d+",
                 @"рис\.\s+\d+",
                 @"табл\.\s+\d+",
-                @"таблица\s+\d+\s*–\s*[^\n]+"
+                @"таблица\s+\d+\s*–\s*[^\n]+",
+                @"Приложение [А-Я]"
             };
 
             if (standardPhrases.Any(phrase => sentence.ToLower().Contains(phrase)))
@@ -201,7 +201,7 @@ namespace PlagiarismGuard.Services
 
             if (standardPatterns.Any(pattern => Regex.IsMatch(sentence, pattern, RegexOptions.IgnoreCase)))
                 return true;
-            if (sentence.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length < 5)
+            if (sentence.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length < 6)
                 return true;
 
             return false;
@@ -335,8 +335,7 @@ namespace PlagiarismGuard.Services
                 htmlDoc.LoadHtml(html);
 
                 var rootNode = htmlDoc.DocumentNode.SelectSingleNode("//body") ?? htmlDoc.DocumentNode;
-
-                var nodesToRemove = rootNode.SelectNodes("//script | //style | //nav | //footer | //header | //iframe | //noscript | //aside");
+                var nodesToRemove = rootNode.SelectNodes("//script | //style");
                 if (nodesToRemove != null)
                 {
                     foreach (var node in nodesToRemove)
@@ -352,17 +351,15 @@ namespace PlagiarismGuard.Services
 
                 foreach (var text in textNodes)
                 {
-                    if (!string.IsNullOrEmpty(text) && text.Length > 2 && !Regex.IsMatch(text, @"^\s*[\{\}\[\]\(\);]+$"))
+                    if (!string.IsNullOrEmpty(text) && text.Length > 2)
                     {
                         textBuilder.AppendLine(text);
                     }
                 }
 
                 string result = textBuilder.ToString().ToLowerInvariant();
-                if (result.Length > MaxTextLength)
-                    result = result.Substring(0, MaxTextLength);
-
                 result = Regex.Replace(result, @"\s+", " ").Trim();
+
 
                 return result;
             }
