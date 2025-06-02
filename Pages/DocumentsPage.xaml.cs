@@ -163,7 +163,6 @@ namespace PlagiarismGuard.Pages
             {
                 CustomMessageBox.Show($"Ни один документ не загружен. Ошибки:\n{string.Join("\n", errors)}", "Ошибка", MessageType.Error, Window.GetWindow(this));
             }
-
             LoadDocuments();
         }
 

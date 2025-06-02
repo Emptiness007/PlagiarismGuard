@@ -56,9 +56,11 @@ namespace PlagiarismGuard.Services
             string inputTextHash = ComputeTextHash(inputText);
 
             var links = ExtractLinks(inputText);
-            string cleanedText = RemoveLinks(inputText);
+            string cleanedText = RemoveLinks(inputText).ToLowerInvariant();
 
-            var (sentences, tableFragments) = ExtractTextAndTableFragments(cleanedText);
+            var sentences = Regex.Split(cleanedText, @"(?<=[.!?])\s+")
+                .Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+
             var referenceDocs = _context.DocumentTexts
                 .Where(dt => dt.DocumentId != documentId &&
                              dt.TextHash != inputTextHash &&
@@ -67,7 +69,7 @@ namespace PlagiarismGuard.Services
 
             var matchedByDocument = new ConcurrentDictionary<int, (List<string> MatchedFragments, List<double> Similarities)>();
             var processedFragments = new ConcurrentBag<string>();
-            int totalFragments = sentences.Count + tableFragments.Count;
+            int totalFragments = sentences.Count;
             int processedCount = 0;
             object lockObj = new object();
 
@@ -75,11 +77,11 @@ namespace PlagiarismGuard.Services
 
             await Task.Run(() =>
             {
-                Parallel.ForEach(sentences.Concat(tableFragments), new ParallelOptions { CancellationToken = cancellationToken }, fragment =>
+                Parallel.ForEach(sentences, new ParallelOptions { CancellationToken = cancellationToken }, fragment =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    if (IsStandardPhrase(fragment) || IsNumericOrShort(fragment))
+                    if (IsStandardPhrase(fragment))
                     {
                         Interlocked.Increment(ref processedCount);
                         progress?.Report($"Проверка документа: {(int)((double)processedCount / totalFragments * 100)}%");
@@ -151,7 +153,7 @@ namespace PlagiarismGuard.Services
 
             float overallPlagiarismPercentageForDB = (float)uniqueMatchedFragments.Count / totalFragments * 100;
 
-            linkResults.AddRange(await VerifyLinksAsync(links, sentences.Concat(tableFragments).ToList(), progress, cancellationToken));
+            linkResults.AddRange(await VerifyLinksAsync(links, sentences, progress, cancellationToken));
 
             var check = new Check
             {
@@ -182,70 +184,7 @@ namespace PlagiarismGuard.Services
             return check;
         }
 
-        private (List<string> Sentences, List<string> TableFragments) ExtractTextAndTableFragments(string text)
-        {
-            var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-            var sentences = new List<string>();
-            var tableFragments = new List<string>();
-            bool inTable = false;
-
-            foreach (var line in lines)
-            {
-                string trimmedLine = line.Trim();
-                if (string.IsNullOrWhiteSpace(trimmedLine))
-                    continue;
-
-                if (trimmedLine.StartsWith("Таблица", StringComparison.OrdinalIgnoreCase) ||
-                    trimmedLine.StartsWith("Table", StringComparison.OrdinalIgnoreCase))
-                {
-                    inTable = true;
-                    continue;
-                }
-
-                if (inTable)
-                {
-                    if (IsTableRow(trimmedLine))
-                    {
-                        var cells = trimmedLine.Split('|')
-                            .Select(cell => cell.Trim())
-                            .Where(cell => !string.IsNullOrWhiteSpace(cell) && !IsNumericOrShort(cell))
-                            .ToList();
-                        tableFragments.AddRange(cells);
-                    }
-                    else
-                    {
-                        inTable = false;
-                        var splitSentences = Regex.Split(trimmedLine, @"(?<=[.!?])\s+")
-                            .Where(s => !string.IsNullOrWhiteSpace(s))
-                            .ToList();
-                        sentences.AddRange(splitSentences);
-                    }
-                }
-                else
-                {
-                    var splitSentences = Regex.Split(trimmedLine, @"(?<=[.!?])\s+")
-                        .Where(s => !string.IsNullOrWhiteSpace(s))
-                        .ToList();
-                    sentences.AddRange(splitSentences);
-                }
-            }
-
-            return (sentences, tableFragments);
-        }
-
-        private bool IsTableRow(string text)
-        {
-            return text.Contains("|") && Regex.IsMatch(text, @"^[^|]+(?:\s*\|\s*[^|]+)*$");
-        }
-
-        private bool IsNumericOrShort(string text)
-        {
-            return Regex.IsMatch(text, @"^\d+$") ||
-                   text.Length <= 5 ||
-                   Regex.IsMatch(text, @"^[\d,.%]+$");
-        }
-
-        private bool IsStandardPhrase(string sentence)
+        public bool IsStandardPhrase(string sentence)
         {
             string[] standardPhrases = { "на рисунке", "в таблице", "представлено", "иллюстрирует", "на схеме", "показано", "изображено", "описано" };
             string[] standardPatterns = {
@@ -261,6 +200,8 @@ namespace PlagiarismGuard.Services
                 return true;
 
             if (standardPatterns.Any(pattern => Regex.IsMatch(sentence, pattern, RegexOptions.IgnoreCase)))
+                return true;
+            if (sentence.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length < 5)
                 return true;
 
             return false;
@@ -285,7 +226,7 @@ namespace PlagiarismGuard.Services
 
             foreach (var sentence2 in sentences2)
             {
-                if (IsStandardPhrase(sentence2) || IsNumericOrShort(sentence2))
+                if (IsStandardPhrase(sentence2))
                     continue;
 
                 int distance = LevenshteinDistance(text1, sentence2);
@@ -314,7 +255,8 @@ namespace PlagiarismGuard.Services
                 .ToList();
         }
 
-        private async Task<List<LinkCheckResult>> VerifyLinksAsync(List<string> links, List<string> sentences, IProgress<string> progress, CancellationToken cancellationToken)
+        private async Task<List<LinkCheckResult>> VerifyLinksAsync(List<string> links, List<string> sentences, 
+            IProgress<string> progress, CancellationToken cancellationToken)
         {
             var linkResults = new List<LinkCheckResult>();
             var tasks = links.Select(link => VerifySingleLinkAsync(link, sentences, cancellationToken)).ToList();
@@ -416,7 +358,7 @@ namespace PlagiarismGuard.Services
                     }
                 }
 
-                string result = textBuilder.ToString();
+                string result = textBuilder.ToString().ToLowerInvariant();
                 if (result.Length > MaxTextLength)
                     result = result.Substring(0, MaxTextLength);
 

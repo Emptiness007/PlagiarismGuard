@@ -29,14 +29,12 @@ namespace PlagiarismGuard.Pages
         {
             var query = _context.Users.AsQueryable();
 
-            // Поиск по логину или почте
             if (!string.IsNullOrWhiteSpace(_searchQuery))
             {
-                query = query.Where(u => u.Username.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                query = query.Where(u => u.Username.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) || 
                                          u.Email.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase));
             }
 
-            // Сортировка по дате создания
             query = _sortOption switch
             {
                 1 => query.OrderByDescending(u => u.CreatedAt),
@@ -56,12 +54,14 @@ namespace PlagiarismGuard.Pages
                 {
                     if (_context.Users.Any(u => u.Username == addUserWindow.Username))
                     {
-                        CustomMessageBox.Show( "Пользователь с таким именем уже существует!", "Ошибка", MessageType.Error, Window.GetWindow(this));
+                        CustomMessageBox.Show( "Пользователь с таким именем уже существует!", "Ошибка", 
+                            MessageType.Error, Window.GetWindow(this));
                         return;
                     }
                     if (_context.Users.Any(u => u.Email == addUserWindow.Email))
                     {
-                        CustomMessageBox.Show( "Пользователь с таким email уже существует!", "Ошибка", MessageType.Error, Window.GetWindow(this));
+                        CustomMessageBox.Show( "Пользователь с таким email уже существует!", "Ошибка", 
+                            MessageType.Error, Window.GetWindow(this));
                         return;
                     }
 
@@ -76,24 +76,21 @@ namespace PlagiarismGuard.Pages
                     _context.Users.Add(user);
                     _context.SaveChanges();
 
-                    CustomMessageBox.Show($"Пользователь успешно добавлен!\nЛогин: {addUserWindow.Username}\nПароль: {addUserWindow.GeneratedPassword}", "Успех", MessageType.Information, Window.GetWindow(this));
+                    CustomMessageBox.Show($"Пользователь успешно добавлен!\nЛогин: {addUserWindow.Username}\n" +
+                        $"Пароль: {addUserWindow.GeneratedPassword}", "Успех", 
+                        MessageType.Information, Window.GetWindow(this));
                     LoadUsers();
                 }
                 catch (Exception ex)
                 {
-                    CustomMessageBox.Show($"Ошибка при добавлении пользователя: {ex.Message}", "Ошибка", MessageType.Error, Window.GetWindow(this));
+                    CustomMessageBox.Show($"Ошибка при добавлении пользователя: {ex.Message}", "Ошибка", 
+                        MessageType.Error, Window.GetWindow(this));
                 }
             }
         }
 
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (CurrentUser.Instance.Role != "admin")
-            {
-                CustomMessageBox.Show("Только администратор может удалять пользователей!", "Ошибка", MessageType.Error, Window.GetWindow(this));
-                return;
-            }
-
             var button = sender as Button;
             if (button != null)
             {

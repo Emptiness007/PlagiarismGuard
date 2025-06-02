@@ -26,6 +26,7 @@
     <PackageReference Include="DocX" Version="4.0.25105.5786" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.1" />
     <PackageReference Include="itext7" Version="9.1.0" />
+    <!--<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.2" />-->
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.2" />
     <PackageReference Include="MySql.Data" Version="9.2.0" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />

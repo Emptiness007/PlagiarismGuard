@@ -56,14 +56,8 @@ namespace PlagiarismGuard.Services
                     doc.MarginLeft = 70;
                     doc.MarginRight = 50;
 
-                    doc.InsertParagraph("Отчет по проверке на плагиат")
-                        .Font("Arial")
-                        .FontSize(18)
-                        .Bold()
-                        .Color(Color.DarkBlue)
-                        .Alignment = Alignment.center;
-                    doc.InsertParagraph()
-                        .SpacingAfter(20);
+                    doc.InsertParagraph("Отчет по проверке на плагиат").Font("Arial").FontSize(18).Bold().Color(Color.DarkBlue).Alignment = Alignment.center;
+                    doc.InsertParagraph().SpacingAfter(20);
 
                     var infoPara = doc.InsertParagraph()
                         .Font("Arial")
@@ -73,13 +67,7 @@ namespace PlagiarismGuard.Services
                            .Append($"Процент плагиата: {check.Similarity:F2}%")
                            .SpacingAfter(10);
 
-                    doc.InsertParagraph("Совпадения с документами")
-                        .Font("Arial")
-                        .FontSize(14)
-                        .Bold()
-                        .Color(Color.DarkBlue)
-                        .SpacingBefore(10)
-                        .SpacingAfter(10);
+                    doc.InsertParagraph("Совпадения с документами").Font("Arial").FontSize(14).Bold().Color(Color.DarkBlue).SpacingBefore(10).SpacingAfter(10);
 
                     // Таблица совпадений с документами
                     if (results.Any())

@@ -10,12 +10,12 @@ namespace PlagiarismGuard.Data
 {
     public class PlagiarismContext : DbContext
     {
-        public DbSet<User> Users { get; set; }
-        public DbSet<Document> Documents { get; set; }
-        public DbSet<DocumentText> DocumentTexts { get; set; }
-        public DbSet<Check> Checks { get; set; }
-        public DbSet<CheckResult> CheckResults { get; set; }
-        public DbSet<LinkCheckResult> LinkCheckResults { get; set; }
+        public virtual DbSet<User> Users { get; set; }
+        public virtual DbSet<Document> Documents { get; set; }
+        public virtual DbSet<DocumentText> DocumentTexts { get; set; }
+        public virtual DbSet<Check> Checks { get; set; }
+        public virtual DbSet<CheckResult> CheckResults { get; set; }
+        public virtual DbSet<LinkCheckResult> LinkCheckResults { get; set; }
 
         public PlagiarismContext()
         {
@@ -32,6 +32,10 @@ namespace PlagiarismGuard.Data
                     System.IO.File.Delete(configPath);
                 }
             }
+        }
+
+        public PlagiarismContext(DbContextOptions options) : base(options)
+        {
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -87,7 +91,7 @@ namespace PlagiarismGuard.Data
             }
         }
 
-        private void EnsureAdminUser()
+        public void EnsureAdminUser()
         {
             if (!Users.Any(u => u.Role == "admin"))
             {

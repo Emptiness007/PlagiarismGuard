@@ -26,11 +26,10 @@ namespace PlagiarismGuard.Services
                 using (var stream = new MemoryStream(fileContent))
                 using (var doc = DocX.Load(stream))
                 {
-                    // 🧹 Удаляем все таблицы из документа
                     var tables = doc.Tables.ToList();
                     foreach (var table in tables)
                     {
-                        table.Remove(); // удаляет таблицу и весь её текст
+                        table.Remove();
                     }
 
                     StringBuilder text = new StringBuilder();
@@ -55,7 +54,7 @@ namespace PlagiarismGuard.Services
                             }
                             else
                             {
-                                continue; // игнорируем все заголовки
+                                continue;
                             }
                         }
 
@@ -96,17 +95,15 @@ namespace PlagiarismGuard.Services
             string style = paragraph.StyleName ?? "";
             string text = paragraph.Text.Trim();
 
-            // Стандартные стили заголовков
             if (!string.IsNullOrEmpty(style) &&
                 (style.StartsWith("Heading", StringComparison.OrdinalIgnoreCase) ||
                  style.StartsWith("Заголовок", StringComparison.OrdinalIgnoreCase)))
                 return true;
 
-            // Регулярка для многоуровневых заголовков: 1, 1.1, 2.3.4 и т.д.
+
             if (Regex.IsMatch(text, @"^\d+(\.\d+)*[\.\)]?\s+.+$"))
                 return true;
 
-            // Ключевые слова-заголовки (точное сравнение)
             string[] knownHeadings = {
                 "Введение",
                 "Заключение",

@@ -84,6 +84,7 @@ namespace PlagiarismGuard
             DocumentsText.Tag = null;
             UsersText.Tag = null;
             DatabaseText.Tag = null;
+            ImportButton.Visibility = Visibility.Collapsed;
 
             HistoryText.Tag = "Active";
             MainFrame.Navigate(new HistoryPage(_context, _reportGeneratorService));
@@ -97,6 +98,7 @@ namespace PlagiarismGuard
             CheckPageText.Tag = null;
             UsersText.Tag = null;
             DatabaseText.Tag = null;
+            ImportButton.Visibility = Visibility.Collapsed;
 
             DocumentsText.Tag = "Active";
             MainFrame.Navigate(new DocumentsPage(_context, _textExtractor, _plagiarismChecker));
@@ -110,6 +112,7 @@ namespace PlagiarismGuard
             CheckPageText.Tag = null;
             DocumentsText.Tag = null;
             DatabaseText.Tag = null;
+            ImportButton.Visibility = Visibility.Collapsed;
 
             UsersText.Tag = "Active";
             MainFrame.Navigate(new UsersPage(_context));
@@ -124,6 +127,7 @@ namespace PlagiarismGuard
             DocumentsText.Tag = null;
             UsersText.Tag = null;
             DatabaseText.Tag = "Active";
+            ImportButton.Visibility = Visibility.Collapsed;
 
             var configWindow = new DatabaseConfigWindow();
             if (configWindow.ShowDialog() == true)
