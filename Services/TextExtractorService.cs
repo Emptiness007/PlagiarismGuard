@@ -5,6 +5,7 @@ using Xceed.Words.NET;
 using System.Linq;
 using Xceed.Document.NET;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace PlagiarismGuard.Services
 {
@@ -35,28 +36,20 @@ namespace PlagiarismGuard.Services
                     StringBuilder text = new StringBuilder();
                     bool skipTitlePage = true;
                     int paragraphCount = 0;
-                    const int maxTitlePageParagraphs = 30;
+                    const int maxTitlePageParagraphs = 25;
 
                     foreach (var paragraph in doc.Paragraphs)
                     {
-                        if (string.IsNullOrWhiteSpace(paragraph.Text))
+                        string rawText = paragraph.Text;
+                        if (string.IsNullOrWhiteSpace(rawText))
                             continue;
 
                         paragraphCount++;
 
                         if (IsHeadingParagraph(paragraph))
-                        {
-                            if (paragraph.StyleName != null &&
-                                paragraph.StyleName.Equals("Heading 1", StringComparison.OrdinalIgnoreCase))
-                            {
-                                skipTitlePage = false;
-                                continue;
-                            }
-                            else
-                            {
-                                continue;
-                            }
-                        }
+                            continue;
+
+                        string cleanedText = rawText.Trim();
 
                         if (IsCaption(paragraph))
                             continue;
@@ -69,14 +62,17 @@ namespace PlagiarismGuard.Services
                                 skipTitlePage = false;
                         }
 
+                        if (string.IsNullOrWhiteSpace(cleanedText))
+                            continue;
+
                         if (paragraph.IsListItem)
                         {
                             string prefix = GetListPrefix(paragraph);
-                            text.AppendLine($"{prefix} {paragraph.Text}");
+                            text.AppendLine($"{prefix} {cleanedText}");
                         }
                         else
                         {
-                            text.AppendLine(paragraph.Text);
+                            text.AppendLine(cleanedText);
                         }
                     }
 
@@ -89,51 +85,38 @@ namespace PlagiarismGuard.Services
             }
         }
 
-
-        private static bool IsHeadingParagraph(Paragraph paragraph)
+        private bool IsHeadingParagraph(Paragraph paragraph)
         {
-            string style = paragraph.StyleName ?? "";
             string text = paragraph.Text.Trim();
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
 
-            if (!string.IsNullOrEmpty(style) &&
-                (style.StartsWith("Heading", StringComparison.OrdinalIgnoreCase) ||
-                 style.StartsWith("Заголовок", StringComparison.OrdinalIgnoreCase)))
-                return true;
+            // Проверяем, содержит ли параграф ссылку
+            bool containsLink = paragraph.Hyperlinks.Any() || // Проверяем наличие гиперссылок
+                               Regex.IsMatch(text, @"(https?://[^\s]+)|(www\.[^\s]+)|([^\s]+\.(com|org|net|ru|edu))"); // Проверяем текст на URL
 
-
-            if (Regex.IsMatch(text, @"^\d+(\.\d+)*[\.\)]?\s+.+$"))
-                return true;
-
-            string[] knownHeadings = {
-                "Введение",
-                "Заключение",
-                "Список использованных источников",
-                "Список литературы",
-                "Приложение",
-                "Библиография"
-            };
-
-            return knownHeadings.Any(h => string.Equals(h, text, StringComparison.OrdinalIgnoreCase));
+            // Параграф считается заголовком, если он НЕ заканчивается на '.', ';' или ':' И НЕ содержит ссылку
+            return !text.EndsWith(".") && !text.EndsWith(";") && !text.EndsWith(":") && !containsLink;
         }
 
         private bool IsCaption(Paragraph paragraph)
         {
-            if (!string.IsNullOrEmpty(paragraph.StyleName) &&
-                paragraph.StyleName.Equals("Caption", StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            string[] keywords = { "ГЛАВА", "Глава", "Рисунок", "Таблица", "Figure", "Table", "Caption" };
-            return keywords.Any(k => paragraph.Text.Contains(k, StringComparison.OrdinalIgnoreCase));
+            string textLower = paragraph.Text.ToLower();
+            string[] keywords = { "рисунок", "таблица", "figure", "table", "caption" };
+            return keywords.Any(k => textLower.Contains(k));
         }
 
         private bool IsTitlePageContent(Paragraph paragraph)
         {
+            string textLower = paragraph.Text.ToLower();
             string[] keywords = {
-                "Содержание", "Курсовая работа", "Дипломная работа", "Дипломный проект",
-                "Курсовой проект", "учреждение", "ЗАДАНИЕ", "Пояснительная записка",
-                "Министерство", "Факультет", "Кафедра", "Выполнил", "Проверил", "Оглавление"
+                "содержание", "курсовая работа", "дипломная работа", "дипломный проект",
+                "курсовой проект", "учреждение", "задание", "пояснительная записка",
+                "министерство", "факультет", "кафедра", "выполнил", "проверил", "оглавление",
+                "автор", "научный руководитель", "аннотация", "abstract", "table of contents",
+                "список сокращений"
             };
-            return keywords.Any(k => paragraph.Text.Contains(k, StringComparison.OrdinalIgnoreCase));
+            return keywords.Any(k => textLower.Contains(k));
         }
 
         private string GetListPrefix(Paragraph paragraph)

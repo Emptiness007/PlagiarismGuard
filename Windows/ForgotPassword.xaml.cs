@@ -14,6 +14,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using static PlagiarismGuard.Windows.CustomMessageBox;
 
 namespace PlagiarismGuard.Windows
 {
@@ -75,7 +76,7 @@ namespace PlagiarismGuard.Windows
                 try
                 {
                     SendMail.SendMessage($"Ваш новый временный пароль: {newPassword}\nПожалуйста, смените его после входа в систему.", email);
-                    MessageBox.Show("Новый пароль отправлен на ваш email. Используйте его для входа.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CustomMessageBox.Show("Новый пароль отправлен на ваш email. Используйте его для входа.", "Успех", MessageType.Information, Window.GetWindow(this));
                     Close();
                 }
                 catch (System.Net.Mail.SmtpException)
